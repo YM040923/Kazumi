@@ -1,11 +1,12 @@
 import 'dart:io';
 
-import 'package:card_settings_ui/card_settings_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
+import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/pages/my/my_controller.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 import 'package:kazumi/utils/mortis.dart';
@@ -130,7 +131,6 @@ class _AboutPageState extends State<AboutPage> {
 
   @override
   Widget build(BuildContext context) {
-    final fontFamily = Theme.of(context).textTheme.bodyMedium?.fontFamily;
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
@@ -139,176 +139,205 @@ class _AboutPageState extends State<AboutPage> {
       child: Scaffold(
         appBar: const SysAppBar(title: Text('关于')),
         // backgroundColor: Colors.transparent,
-        body: SettingsList(
-          maxWidth: 1000,
-          sections: [
-            SettingsSection(
-              tiles: [
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    Modular.to.pushNamed('/settings/about/license');
-                  },
-                  title:
-                      Text('开源许可证', style: TextStyle(fontFamily: fontFamily)),
-                  description: Text('查看所有开源许可证',
-                      style: TextStyle(fontFamily: fontFamily)),
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: Text('外部链接', style: TextStyle(fontFamily: fontFamily)),
-              tiles: [
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse(ApiEndpoints.projectUrl),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('项目主页', style: TextStyle(fontFamily: fontFamily)),
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse(ApiEndpoints.sourceUrl),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('代码仓库', style: TextStyle(fontFamily: fontFamily)),
-                  value:
-                      Text('Github', style: TextStyle(fontFamily: fontFamily)),
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse(ApiEndpoints.iconUrl),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('图标创作', style: TextStyle(fontFamily: fontFamily)),
-                  value:
-                      Text('Pixiv', style: TextStyle(fontFamily: fontFamily)),
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse(ApiEndpoints.bangumiIndex),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('番剧索引', style: TextStyle(fontFamily: fontFamily)),
-                  value:
-                      Text('Bangumi', style: TextStyle(fontFamily: fontFamily)),
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse('https://trace.moe'),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('以图搜番', style: TextStyle(fontFamily: fontFamily)),
-                  value: Text('trace.moe',
-                      style: TextStyle(fontFamily: fontFamily)),
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    launchUrl(Uri.parse(ApiEndpoints.dandanIndex),
-                        mode: LaunchMode.externalApplication);
-                  },
-                  title: Text('弹幕来源', style: TextStyle(fontFamily: fontFamily)),
-                  description: Text('ID: ${mortis['id']}',
-                      style: TextStyle(fontFamily: fontFamily)),
-                  value: Text('DanDanPlay',
-                      style: TextStyle(fontFamily: fontFamily)),
-                ),
-              ],
-            ),
-            if (Utils.isDesktop()) // 之后如果有非桌面平台的新选项可以移除
-              SettingsSection(
-                title: Text('默认行为', style: TextStyle(fontFamily: fontFamily)),
-                tiles: [
-                  SettingsTile.navigation(
-                    onPressed: (_) {
-                      if (menuController.isOpen) {
-                        menuController.close();
-                      } else {
-                        menuController.open();
-                      }
-                    },
-                    title:
-                        Text('关闭时', style: TextStyle(fontFamily: fontFamily)),
-                    value: MenuAnchor(
-                      consumeOutsideTap: true,
-                      controller: menuController,
-                      builder: (_, __, ___) {
-                        return Text(exitBehaviorTitles[exitBehavior]);
-                      },
-                      menuChildren: [
-                        for (int i = 0; i < 3; i++)
-                          MenuItemButton(
-                            requestFocusOnHover: false,
-                            onPressed: () {
-                              exitBehavior = i;
-                              setting.put(SettingBoxKey.exitBehavior, i);
-                              setState(() {});
+        body: ListView(
+          padding: const EdgeInsets.all(KazumiSpacing.lg),
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1000),
+              child: Column(
+                children: [
+                  SettingsSectionCard(
+                    title: '开源信息',
+                    icon: Icons.article_outlined,
+                    tiles: [
+                      SettingsNavTile(
+                        leading: const Icon(Icons.description_outlined),
+                        title: '开源许可证',
+                        subtitle: '查看所有开源许可证',
+                        isLast: true,
+                        onTap: () {
+                          Modular.to.pushNamed('/settings/about/license');
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KazumiSpacing.md),
+                  SettingsSectionCard(
+                    title: '外部链接',
+                    icon: Icons.link,
+                    tiles: [
+                      SettingsNavTile(
+                        leading: const Icon(Icons.home_outlined),
+                        title: '项目主页',
+                        onTap: () {
+                          launchUrl(Uri.parse(ApiEndpoints.projectUrl),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.code),
+                        title: '代码仓库',
+                        trailing: const Text('Github'),
+                        onTap: () {
+                          launchUrl(Uri.parse(ApiEndpoints.sourceUrl),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.brush_outlined),
+                        title: '图标创作',
+                        trailing: const Text('Pixiv'),
+                        onTap: () {
+                          launchUrl(Uri.parse(ApiEndpoints.iconUrl),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.menu_book_outlined),
+                        title: '番剧索引',
+                        trailing: const Text('Bangumi'),
+                        onTap: () {
+                          launchUrl(Uri.parse(ApiEndpoints.bangumiIndex),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.image_search),
+                        title: '以图搜番',
+                        trailing: const Text('trace.moe'),
+                        onTap: () {
+                          launchUrl(Uri.parse('https://trace.moe'),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.chat_bubble_outline),
+                        title: '弹幕来源',
+                        subtitle: 'ID: ${mortis['id']}',
+                        trailing: const Text('DanDanPlay'),
+                        isLast: true,
+                        onTap: () {
+                          launchUrl(Uri.parse(ApiEndpoints.dandanIndex),
+                              mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                    ],
+                  ),
+                  if (Utils.isDesktop()) ...[
+                    const SizedBox(height: KazumiSpacing.md),
+                    SettingsSectionCard(
+                      title: '默认行为',
+                      icon: Icons.touch_app_outlined,
+                      tiles: [
+                        SettingsNavTile(
+                          leading: const Icon(Icons.exit_to_app),
+                          title: '关闭时',
+                          trailing: MenuAnchor(
+                            consumeOutsideTap: true,
+                            controller: menuController,
+                            builder: (_, __, ___) {
+                              return Text(exitBehaviorTitles[exitBehavior]);
                             },
-                            child: Container(
-                              height: 48,
-                              constraints: BoxConstraints(minWidth: 112),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  exitBehaviorTitles[i],
-                                  style: TextStyle(
-                                    color: i == exitBehavior
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
+                            menuChildren: [
+                              for (int i = 0; i < 3; i++)
+                                MenuItemButton(
+                                  requestFocusOnHover: false,
+                                  onPressed: () {
+                                    exitBehavior = i;
+                                    setting.put(SettingBoxKey.exitBehavior, i);
+                                    setState(() {});
+                                  },
+                                  child: Container(
+                                    height: 48,
+                                    constraints: BoxConstraints(minWidth: 112),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        exitBehaviorTitles[i],
+                                        style: TextStyle(
+                                          color: i == exitBehavior
+                                              ? Theme.of(context).colorScheme.primary
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                            ],
                           ),
+                          isLast: true,
+                          onTap: () {
+                            if (menuController.isOpen) {
+                              menuController.close();
+                            } else {
+                              menuController.open();
+                            }
+                          },
+                        ),
                       ],
                     ),
+                  ],
+                  const SizedBox(height: KazumiSpacing.md),
+                  SettingsSectionCard(
+                    title: '支持',
+                    icon: Icons.support_outlined,
+                    tiles: [
+                      SettingsNavTile(
+                        leading: const Icon(Icons.bug_report_outlined),
+                        title: '错误日志',
+                        isLast: true,
+                        onTap: () {
+                          Modular.to.pushNamed('/settings/about/logs');
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KazumiSpacing.md),
+                  SettingsSectionCard(
+                    title: '存储',
+                    icon: Icons.sd_storage_outlined,
+                    tiles: [
+                      SettingsNavTile(
+                        leading: const Icon(Icons.cleaning_services_outlined),
+                        title: '清除缓存',
+                        trailing: _cacheSizeMB == -1
+                            ? const Text('统计中...')
+                            : Text('${_cacheSizeMB.toStringAsFixed(2)}MB'),
+                        isLast: true,
+                        onTap: () {
+                          _showCacheDialog();
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: KazumiSpacing.md),
+                  SettingsSectionCard(
+                    title: '应用更新',
+                    icon: Icons.system_update_outlined,
+                    tiles: [
+                      SettingsSwitchTile(
+                        leading: const Icon(Icons.system_update),
+                        title: '自动更新',
+                        value: autoUpdate,
+                        onChanged: (value) async {
+                          autoUpdate = value;
+                          await setting.put(SettingBoxKey.autoUpdate, autoUpdate);
+                          setState(() {});
+                        },
+                      ),
+                      SettingsNavTile(
+                        leading: const Icon(Icons.update),
+                        title: '检查更新',
+                        trailing: Text('当前版本 ${ApiEndpoints.version}'),
+                        isLast: true,
+                        onTap: () {
+                          myController.checkUpdate();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            SettingsSection(
-              tiles: [
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    Modular.to.pushNamed('/settings/about/logs');
-                  },
-                  title: Text('错误日志', style: TextStyle(fontFamily: fontFamily)),
-                ),
-              ],
-            ),
-            SettingsSection(
-              tiles: [
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    _showCacheDialog();
-                  },
-                  title: Text('清除缓存', style: TextStyle(fontFamily: fontFamily)),
-                  value: _cacheSizeMB == -1
-                      ? Text('统计中...', style: TextStyle(fontFamily: fontFamily))
-                      : Text('${_cacheSizeMB.toStringAsFixed(2)}MB',
-                          style: TextStyle(fontFamily: fontFamily)),
-                ),
-              ],
-            ),
-            SettingsSection(
-              title: Text('应用更新', style: TextStyle(fontFamily: fontFamily)),
-              tiles: [
-                SettingsTile.switchTile(
-                  onToggle: (value) async {
-                    autoUpdate = value ?? !autoUpdate;
-                    await setting.put(SettingBoxKey.autoUpdate, autoUpdate);
-                    setState(() {});
-                  },
-                  title: Text('自动更新', style: TextStyle(fontFamily: fontFamily)),
-                  initialValue: autoUpdate,
-                ),
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    myController.checkUpdate();
-                  },
-                  title: Text('检查更新', style: TextStyle(fontFamily: fontFamily)),
-                  value: Text('当前版本 ${ApiEndpoints.version}',
-                      style: TextStyle(fontFamily: fontFamily)),
-                ),
-              ],
             ),
           ],
         ),

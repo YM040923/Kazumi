@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/constants.dart';
-import 'package:card_settings_ui/card_settings_ui.dart';
 
 class DecoderSettings extends StatefulWidget {
   const DecoderSettings({super.key});
@@ -14,41 +15,111 @@ class DecoderSettings extends StatefulWidget {
 
 class _DecoderSettingsState extends State<DecoderSettings> {
   late final Box setting = GStorage.setting;
-  late final ValueNotifier<String> decoder = ValueNotifier<String>(
-    setting.get(SettingBoxKey.hardwareDecoder, defaultValue: 'auto-safe'),
-  );
+  late String selected;
+
+  @override
+  void initState() {
+    super.initState();
+    selected =
+        setting.get(SettingBoxKey.hardwareDecoder, defaultValue: 'auto-safe');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final fontFamily = Theme.of(context).textTheme.bodyMedium?.fontFamily;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: const SysAppBar(
-        title: Text('硬件解码器'),
-      ),
-      body: SettingsList(
-        maxWidth: 1000,
-        sections: [
-          SettingsSection(
-            title: Text('选择不受支持的解码器将回退到软件解码', style: TextStyle(fontFamily: fontFamily)),
+      appBar: const SysAppBar(title: Text('硬件解码器')),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KazumiSpacing.md,
+          vertical: KazumiSpacing.sm,
+        ),
+        children: [
+          SettingsSectionCard(
+            title: '选择不受支持的解码器将回退到软件解码',
+            icon: Icons.developer_board_rounded,
             tiles: hardwareDecodersList.entries
-                .map((e) => SettingsTile<String>.radioTile(
-                      title: Text(e.key, style: TextStyle(fontFamily: fontFamily)),
-                      description: Text(e.value, style: TextStyle(fontFamily: fontFamily)),
-                      radioValue: e.key,
-                      groupValue: decoder.value,
-                      onChanged: (String? value) {
-                        if (value != null) {
-                          setting.put(SettingBoxKey.hardwareDecoder, value);
-                          setState(() {
-                            decoder.value = value;
-                          });
-                        }
+                .map((e) => _RadioListTile(
+                      title: e.key,
+                      subtitle: e.value,
+                      value: e.key,
+                      groupValue: selected,
+                      onChanged: (v) {
+                        setting.put(SettingBoxKey.hardwareDecoder, v);
+                        setState(() => selected = v);
                       },
                     ))
                 .toList(),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RadioListTile extends StatelessWidget {
+  const _RadioListTile({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.groupValue,
+    required this.onChanged,
+    this.isLast = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final String value;
+  final String groupValue;
+  final ValueChanged<String> onChanged;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = value == groupValue;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RadioListTile<String>(
+          contentPadding: const EdgeInsets.symmetric(horizontal: KazumiSpacing.lg),
+          title: Text(title,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              )),
+          subtitle: Text(subtitle,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 12,
+              )),
+          value: value,
+          groupValue: groupValue,
+          activeColor: scheme.primary,
+          selected: selected,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: isLast
+                ? BorderRadius.only(
+                    bottomLeft: Radius.circular(KazumiRadius.md),
+                    bottomRight: Radius.circular(KazumiRadius.md),
+                  )
+                : BorderRadius.zero,
+          ),
+        ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            indent: KazumiSpacing.lg + 22 + KazumiSpacing.md,
+            endIndent: KazumiSpacing.lg,
+            color: scheme.outlineVariant,
+          ),
+      ],
     );
   }
 }

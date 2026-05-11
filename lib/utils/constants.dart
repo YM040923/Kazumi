@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 
+// 注意: 新的设计Token请使用 lib/design/design_tokens.dart 中的 KazumiSpacing / KazumiRadius
+// StyleString 保留以兼容旧代码，逐步迁移中
 class StyleString {
   static const double cardSpace = 8;
   static const double safeSpace = 12;

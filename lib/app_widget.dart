@@ -14,6 +14,7 @@ import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/settings/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:kazumi/utils/constants.dart';
+import 'package:kazumi/design/kazumi_theme.dart';
 
 class AppWidget extends StatefulWidget {
   const AppWidget({super.key});
@@ -145,15 +146,11 @@ class _AppWidgetState extends State<AppWidget>
     Color? color,
     ColorScheme? colorScheme,
   }) {
-    return ThemeData(
-      useMaterial3: true,
-      fontFamily: fontFamily,
+    return KazumiTheme.buildTheme(
       brightness: brightness,
-      colorSchemeSeed: color,
+      fontFamily: fontFamily,
+      colorSeed: color,
       colorScheme: colorScheme,
-      progressIndicatorTheme: progressIndicatorTheme2024,
-      sliderTheme: sliderTheme2024,
-      pageTransitionsTheme: pageTransitionsTheme2024,
     );
   }
 

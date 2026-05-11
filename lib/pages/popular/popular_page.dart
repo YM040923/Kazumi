@@ -6,6 +6,7 @@ import 'package:kazumi/bean/widget/error_widget.dart';
 import 'package:kazumi/bean/widget/custom_dropdown_menu.dart';
 import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/bean/card/bangumi_card.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter/services.dart';
@@ -153,11 +154,28 @@ class _PopularPageState extends State<PopularPage>
                 })),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => scrollController.animateTo(0,
-              duration: const Duration(milliseconds: 350),
-              curve: Curves.easeOut),
-          child: const Icon(Icons.arrow_upward),
+        floatingActionButton: Observer(
+          builder: (_) {
+            final showFab = scrollController.hasClients &&
+                scrollController.offset > 300;
+            return AnimatedOpacity(
+              opacity: showFab ? 1.0 : 0.0,
+              duration: KazumiDurations.fast,
+              child: AnimatedScale(
+                scale: showFab ? 1.0 : 0.5,
+                duration: KazumiDurations.fast,
+                curve: Curves.easeOutBack,
+                child: FloatingActionButton.small(
+                  onPressed: showFab
+                      ? () => scrollController.animateTo(0,
+                          duration: KazumiDurations.slow,
+                          curve: Curves.easeOutCubic)
+                      : null,
+                  child: const Icon(Icons.arrow_upward_rounded),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -171,19 +189,24 @@ class _PopularPageState extends State<PopularPage>
     if (MediaQuery.sizeOf(context).width > LayoutBreakpoint.medium['width']!) {
       crossCount = 6;
     }
+    // 行间距统一使用设计Token
+    const double mainAxisSpacing = KazumiSpacing.md;
+    const double crossAxisSpacing = KazumiSpacing.md;
     return SliverPadding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(
+        KazumiSpacing.md,
+        KazumiSpacing.sm,
+        KazumiSpacing.md,
+        KazumiSpacing.xl,
+      ),
       sliver: SliverGrid(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          // 行间距
-          mainAxisSpacing: StyleString.cardSpace - 2,
-          // 列间距
-          crossAxisSpacing: StyleString.cardSpace,
-          // 列数
+          mainAxisSpacing: mainAxisSpacing,
+          crossAxisSpacing: crossAxisSpacing,
           crossAxisCount: crossCount,
           mainAxisExtent:
               MediaQuery.of(context).size.width / crossCount / 0.65 +
-                  MediaQuery.textScalerOf(context).scale(32.0),
+                  MediaQuery.textScalerOf(context).scale(45.0),
         ),
         delegate: SliverChildBuilderDelegate(
           (BuildContext context, int index) {
@@ -199,33 +222,38 @@ class _PopularPageState extends State<PopularPage>
 
   Widget buildSliverAppBar() {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return SliverAppBar(
       pinned: true,
       stretch: true,
-      expandedHeight: 120,
+      expandedHeight: 112,
       elevation: 0,
+      scrolledUnderElevation: KazumiElevations.subtle,
       titleSpacing: 0,
       centerTitle: false,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
       actions: buildActions(),
       title: null,
       flexibleSpace: SafeArea(
         child: dtb.DragToMoveArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final double maxExtent = 120 - MediaQuery.of(context).padding.top;
+              final double maxExtent = 112 - MediaQuery.of(context).padding.top;
               final t = (1 -
                   ((constraints.maxHeight - kToolbarHeight) /
                           (maxExtent - kToolbarHeight))
                       .clamp(0.0, 1.0));
-              // 字重收缩后为 w500，展开时为 w700
-              final fontWeight = t < 0.5 ? FontWeight.w700 : FontWeight.w500;
-              final fontSize = lerpDouble(28, 20, t)!;
+              final fontWeight = t < 0.5 ? FontWeight.w700 : FontWeight.w600;
+              final fontSize = lerpDouble(26, 18, t)!;
               return Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.only(
-                      left: 16, top: 8, bottom: 8, right: 60),
+                      left: KazumiSpacing.lg,
+                      top: KazumiSpacing.sm,
+                      bottom: KazumiSpacing.sm,
+                      right: 60),
                   child: SizedBox(
                     height: 44,
                     child: Observer(
@@ -233,21 +261,29 @@ class _PopularPageState extends State<PopularPage>
                         final bool isTrend = popularController.currentTag == '';
                         return InkWell(
                           key: selectorKey,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius:
+                              BorderRadius.circular(KazumiRadius.sm),
                           onTap: showTagMenu,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                isTrend ? '热门番组' : popularController.currentTag,
-                                style: theme.textTheme.headlineMedium!.copyWith(
+                                isTrend
+                                    ? '热门番组'
+                                    : popularController.currentTag,
+                                style: TextStyle(
                                   fontWeight: fontWeight,
                                   fontSize: fontSize,
+                                  color: scheme.onSurface,
+                                  letterSpacing: -0.3,
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              Icon(Icons.keyboard_arrow_down,
-                                  size: fontSize, color: theme.iconTheme.color),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: fontSize,
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ],
                           ),
                         );

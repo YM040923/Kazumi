@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/pages/router.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:provider/provider.dart';
@@ -18,9 +19,7 @@ class NavigationBarState extends ChangeNotifier {
   bool _isBottom = false;
 
   int get selectedIndex => _selectedIndex;
-
   bool get isHide => _isHide;
-
   bool get isBottom => _isBottom;
 
   int getDefaultSelectedIndex() {
@@ -63,99 +62,109 @@ class _ScaffoldMenu extends State<ScaffoldMenu> {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-        create: (context) => NavigationBarState(),
-        child: Consumer<NavigationBarState>(builder: (context, state, _) {
-          return OrientationBuilder(builder: (context, orientation) {
-            state._isBottom = orientation == Orientation.portrait;
-            return orientation != Orientation.portrait
-                ? sideMenuWidget(context, state)
-                : bottomMenuWidget(context, state);
-          });
-        }));
+      create: (context) => NavigationBarState(),
+      child: Consumer<NavigationBarState>(
+        builder: (context, state, _) {
+          return OrientationBuilder(
+            builder: (context, orientation) {
+              state._isBottom = orientation == Orientation.portrait;
+              return orientation != Orientation.portrait
+                  ? _sideMenuWidget(context, state)
+                  : _bottomMenuWidget(context, state);
+            },
+          );
+        },
+      ),
+    );
   }
 
-  Widget bottomMenuWidget(BuildContext context, NavigationBarState state) {
+  Widget _bottomMenuWidget(BuildContext context, NavigationBarState state) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-        body: Container(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          child: PageView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            controller: _page,
-            itemCount: menu.size,
-            itemBuilder: (_, __) => const RouterOutlet(),
-          ),
+      body: Container(
+        color: scheme.surfaceContainerLowest,
+        child: PageView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          controller: _page,
+          itemCount: menu.size,
+          itemBuilder: (_, __) => const RouterOutlet(),
         ),
-        bottomNavigationBar: state.isHide
-            ? const SizedBox(height: 0)
-            : NavigationBar(
-                destinations: const <Widget>[
-                  NavigationDestination(
-                    selectedIcon: Icon(Icons.home),
-                    icon: Icon(Icons.home_outlined),
-                    label: '推荐',
-                  ),
-                  NavigationDestination(
-                    selectedIcon: Icon(Icons.timeline),
-                    icon: Icon(Icons.timeline_outlined),
-                    label: '时间表',
-                  ),
-                  NavigationDestination(
-                    selectedIcon: Icon(Icons.favorite),
-                    icon: Icon(Icons.favorite_outlined),
-                    label: '追番',
-                  ),
-                  NavigationDestination(
-                    selectedIcon: Icon(Icons.settings),
-                    icon: Icon(Icons.settings),
-                    label: '我的',
-                  ),
-                ],
-                selectedIndex: state.selectedIndex,
-                onDestinationSelected: (int index) {
-                  state.updateSelectedIndex(index);
-                  Modular.to.navigate("/tab${menu.getPath(index)}/");
-                },
-              ));
+      ),
+      bottomNavigationBar: state.isHide
+          ? const SizedBox(height: 0)
+          : NavigationBar(
+              destinations: const <Widget>[
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.home_rounded),
+                  icon: Icon(Icons.home_outlined),
+                  label: '推荐',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.timeline_rounded),
+                  icon: Icon(Icons.timeline_outlined),
+                  label: '时间表',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.favorite_rounded),
+                  icon: Icon(Icons.favorite_outlined),
+                  label: '追番',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  icon: Icon(Icons.settings_outlined),
+                  label: '我的',
+                ),
+              ],
+              selectedIndex: state.selectedIndex,
+              onDestinationSelected: (int index) {
+                state.updateSelectedIndex(index);
+                Modular.to.navigate("/tab${menu.getPath(index)}/");
+              },
+            ),
+    );
   }
 
-  Widget sideMenuWidget(BuildContext context, NavigationBarState state) {
+  Widget _sideMenuWidget(BuildContext context, NavigationBarState state) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+      backgroundColor: scheme.surfaceContainerLow,
       body: Row(
         children: [
           EmbeddedNativeControlArea(
             child: Visibility(
               visible: !state.isHide,
               child: NavigationRail(
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                backgroundColor: scheme.surfaceContainerLow,
                 groupAlignment: 1.0,
                 leading: FloatingActionButton(
-                  elevation: 0,
+                  elevation: KazumiElevations.none,
                   heroTag: null,
+                  backgroundColor: scheme.secondaryContainer,
+                  foregroundColor: scheme.onSecondaryContainer,
                   onPressed: () {
                     Modular.to.pushNamed('/search/');
                   },
-                  child: const Icon(Icons.search),
+                  child: const Icon(Icons.search_rounded),
                 ),
                 labelType: NavigationRailLabelType.selected,
                 destinations: const <NavigationRailDestination>[
                   NavigationRailDestination(
-                    selectedIcon: Icon(Icons.home),
+                    selectedIcon: Icon(Icons.home_rounded),
                     icon: Icon(Icons.home_outlined),
                     label: Text('推荐'),
                   ),
                   NavigationRailDestination(
-                    selectedIcon: Icon(Icons.timeline),
+                    selectedIcon: Icon(Icons.timeline_rounded),
                     icon: Icon(Icons.timeline_outlined),
                     label: Text('时间表'),
                   ),
                   NavigationRailDestination(
-                    selectedIcon: Icon(Icons.favorite),
+                    selectedIcon: Icon(Icons.favorite_rounded),
                     icon: Icon(Icons.favorite_border),
                     label: Text('追番'),
                   ),
                   NavigationRailDestination(
-                    selectedIcon: Icon(Icons.settings),
+                    selectedIcon: Icon(Icons.settings_rounded),
                     icon: Icon(Icons.settings_outlined),
                     label: Text('我的'),
                   ),
@@ -171,16 +180,16 @@ class _ScaffoldMenu extends State<ScaffoldMenu> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: scheme.surfaceContainerLowest,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16.0),
-                  bottomLeft: Radius.circular(16.0),
+                  topLeft: Radius.circular(KazumiRadius.xl),
+                  bottomLeft: Radius.circular(KazumiRadius.xl),
                 ),
               ),
               child: ClipRRect(
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16.0),
-                  bottomLeft: Radius.circular(16.0),
+                  topLeft: Radius.circular(KazumiRadius.xl),
+                  bottomLeft: Radius.circular(KazumiRadius.xl),
                 ),
                 child: PageView.builder(
                   physics: const NeverScrollableScrollPhysics(),

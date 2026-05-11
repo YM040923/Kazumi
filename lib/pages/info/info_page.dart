@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/widget/collect_button.dart';
 import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
@@ -405,7 +406,8 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
           ),
           floatingActionButton: FloatingActionButton.extended(
             icon: const Icon(Icons.play_arrow_rounded),
-            label: Text('开始观看'),
+            label: const Text('开始观看'),
+            elevation: KazumiElevations.low,
             onPressed: () async {
               showModalBottomSheet(
                 isScrollControlled: true,
@@ -420,7 +422,6 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                       : MediaQuery.of(context).size.width,
                 ),
                 clipBehavior: Clip.antiAlias,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 showDragHandle: true,
                 context: context,
                 builder: (context) {

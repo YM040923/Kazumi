@@ -3,8 +3,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
-import 'package:card_settings_ui/card_settings_ui.dart';
 
 class SetDisplayMode extends StatefulWidget {
   const SetDisplayMode({super.key});
@@ -29,9 +30,7 @@ class _SetDisplayModeState extends State<SetDisplayMode> {
   void initState() {
     super.initState();
     init();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      fetchAll();
-    });
+    SchedulerBinding.instance.addPostFrameCallback((_) => fetchAll());
   }
 
   Future<void> fetchAll() async {
@@ -45,50 +44,89 @@ class _SetDisplayModeState extends State<SetDisplayMode> {
     try {
       modes = await FlutterDisplayMode.supported;
     } on PlatformException catch (_) {}
-    var res = await getDisplayModeType(modes);
-
-    preferred = modes.toList().firstWhere((el) => el == res);
+    preferred = modes.firstWhere(
+      (el) => el == getDisplayModeType(),
+      orElse: () => DisplayMode.auto,
+    );
     FlutterDisplayMode.setPreferredMode(preferred!);
   }
 
-  Future<DisplayMode> getDisplayModeType(modes) async {
-    var value = setting.get(SettingBoxKey.displayMode);
-    DisplayMode f = DisplayMode.auto;
+  DisplayMode getDisplayModeType() {
+    final value = setting.get(SettingBoxKey.displayMode);
     if (value != null) {
-      f = modes.firstWhere((e) => e.toString() == value);
+      return modes.firstWhere((e) => e.toString() == value);
     }
-    return f;
+    return DisplayMode.auto;
   }
 
   @override
   Widget build(BuildContext context) {
-    final fontFamily = Theme.of(context).textTheme.bodyMedium?.fontFamily;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('屏幕帧率设置')),
-      body: (modes.isEmpty)
-          ? const CircularProgressIndicator()
-          : SettingsList(
-              maxWidth: 1000,
-              sections: [
-                SettingsSection(
-                  title: Text('没有生效? 重启app试试', style: TextStyle(fontFamily: fontFamily)),
-                  tiles: modes
-                      .map((e) => SettingsTile<DisplayMode>.radioTile(
-                            radioValue: e,
-                            groupValue: preferred,
-                            onChanged: (DisplayMode? newMode) async {
-                              await FlutterDisplayMode.setPreferredMode(
-                                  newMode!);
-                              await Future<dynamic>.delayed(
-                                const Duration(milliseconds: 100),
-                              );
-                              await fetchAll();
-                            },
-                            title: e == DisplayMode.auto
-                                ? Text('自动', style: TextStyle(fontFamily: fontFamily))
-                                : Text('$e${e == active ? "  [系统]" : ""}', style: TextStyle(fontFamily: fontFamily)),
-                          ))
-                      .toList(),
+      body: modes.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: KazumiSpacing.md,
+                vertical: KazumiSpacing.sm,
+              ),
+              children: [
+                SettingsSectionCard(
+                  title: '没有生效? 重启app试试',
+                  icon: Icons.screenshot_monitor_rounded,
+                  tiles: modes.map((e) {
+                    final isLast = modes.last == e;
+                    final isSelected = e == preferred;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<DisplayMode>(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: KazumiSpacing.lg),
+                          title: Text(
+                            e == DisplayMode.auto
+                                ? '自动'
+                                : '$e${e == active ? "  [系统]" : ""}',
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          value: e,
+                          groupValue: preferred,
+                          activeColor: scheme.primary,
+                          selected: isSelected,
+                          onChanged: (newMode) async {
+                            await FlutterDisplayMode.setPreferredMode(newMode!);
+                            await Future.delayed(
+                              const Duration(milliseconds: 100),
+                            );
+                            await fetchAll();
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: isLast
+                                ? BorderRadius.only(
+                                    bottomLeft:
+                                        Radius.circular(KazumiRadius.md),
+                                    bottomRight:
+                                        Radius.circular(KazumiRadius.md),
+                                  )
+                                : BorderRadius.zero,
+                          ),
+                        ),
+                        if (!isLast)
+                          Divider(
+                            height: 1,
+                            indent: KazumiSpacing.lg + 22 + KazumiSpacing.md,
+                            endIndent: KazumiSpacing.lg,
+                            color: scheme.outlineVariant,
+                          ),
+                      ],
+                    );
+                  }).toList(),
                 ),
               ],
             ),

@@ -2,16 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/card/palette_card.dart';
-import 'package:kazumi/utils/constants.dart';
+import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_theme.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/settings/theme_provider.dart';
-import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/settings/color_type.dart';
 import 'package:kazumi/utils/utils.dart';
-import 'package:card_settings_ui/card_settings_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -24,14 +24,12 @@ class ThemeSettingsPage extends StatefulWidget {
 
 class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
   Box setting = GStorage.setting;
-  late dynamic defaultDanmakuArea;
-  late dynamic defaultThemeMode;
-  late dynamic defaultThemeColor;
+  late String defaultThemeMode;
+  late String defaultThemeColor;
   late bool oledEnhance;
   late bool useDynamicColor;
   late bool showWindowButton;
   late bool useSystemFont;
-  final PopularController popularController = Modular.get<PopularController>();
   late final ThemeProvider themeProvider;
   final MenuController menuController = MenuController();
 
@@ -55,84 +53,68 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
   void onBackPressed(BuildContext context) {
     if (KazumiDialog.observer.hasKazumiDialog) {
       KazumiDialog.dismiss();
-      return;
     }
   }
 
   void setTheme(Color? color) {
-    var defaultDarkTheme = ThemeData(
-        useMaterial3: true,
-        fontFamily: themeProvider.currentFontFamily,
-        brightness: Brightness.dark,
-        colorSchemeSeed: color,
-        progressIndicatorTheme: progressIndicatorTheme2024,
-        sliderTheme: sliderTheme2024,
-        pageTransitionsTheme: pageTransitionsTheme2024);
-    var oledDarkTheme = Utils.oledDarkTheme(defaultDarkTheme);
+    final fontFamily = themeProvider.currentFontFamily;
+    final defaultDarkTheme = KazumiTheme.buildTheme(
+      brightness: Brightness.dark,
+      fontFamily: fontFamily,
+      colorSeed: color,
+    );
     themeProvider.setTheme(
-      ThemeData(
-          useMaterial3: true,
-          fontFamily: themeProvider.currentFontFamily,
-          brightness: Brightness.light,
-          colorSchemeSeed: color,
-          progressIndicatorTheme: progressIndicatorTheme2024,
-          sliderTheme: sliderTheme2024,
-          pageTransitionsTheme: pageTransitionsTheme2024),
-      oledEnhance ? oledDarkTheme : defaultDarkTheme,
+      KazumiTheme.buildTheme(
+        brightness: Brightness.light,
+        fontFamily: fontFamily,
+        colorSeed: color,
+      ),
+      oledEnhance ? Utils.oledDarkTheme(defaultDarkTheme) : defaultDarkTheme,
     );
     defaultThemeColor = color?.value.toRadixString(16) ?? 'default';
     setting.put(SettingBoxKey.themeColor, defaultThemeColor);
   }
 
   void resetTheme() {
-    var defaultDarkTheme = ThemeData(
-        useMaterial3: true,
-        fontFamily: themeProvider.currentFontFamily,
-        brightness: Brightness.dark,
-        colorSchemeSeed: Colors.green,
-        progressIndicatorTheme: progressIndicatorTheme2024,
-        sliderTheme: sliderTheme2024,
-        pageTransitionsTheme: pageTransitionsTheme2024);
-    var oledDarkTheme = Utils.oledDarkTheme(defaultDarkTheme);
+    final fontFamily = themeProvider.currentFontFamily;
+    final defaultDarkTheme = KazumiTheme.buildTheme(
+      brightness: Brightness.dark,
+      fontFamily: fontFamily,
+      colorSeed: Colors.green,
+    );
     themeProvider.setTheme(
-      ThemeData(
-          useMaterial3: true,
-          fontFamily: themeProvider.currentFontFamily,
-          brightness: Brightness.light,
-          colorSchemeSeed: Colors.green,
-          progressIndicatorTheme: progressIndicatorTheme2024,
-          sliderTheme: sliderTheme2024,
-          pageTransitionsTheme: pageTransitionsTheme2024),
-      oledEnhance ? oledDarkTheme : defaultDarkTheme,
+      KazumiTheme.buildTheme(
+        brightness: Brightness.light,
+        fontFamily: fontFamily,
+        colorSeed: Colors.green,
+      ),
+      oledEnhance ? Utils.oledDarkTheme(defaultDarkTheme) : defaultDarkTheme,
     );
     defaultThemeColor = 'default';
     setting.put(SettingBoxKey.themeColor, 'default');
   }
 
   void updateTheme(String theme) async {
-    if (theme == 'dark') {
-      themeProvider.setThemeMode(ThemeMode.dark);
-    }
-    if (theme == 'light') {
-      themeProvider.setThemeMode(ThemeMode.light);
-    }
-    if (theme == 'system') {
-      themeProvider.setThemeMode(ThemeMode.system);
+    switch (theme) {
+      case 'dark':
+        themeProvider.setThemeMode(ThemeMode.dark);
+      case 'light':
+        themeProvider.setThemeMode(ThemeMode.light);
+      case 'system':
+        themeProvider.setThemeMode(ThemeMode.system);
     }
     await setting.put(SettingBoxKey.themeMode, theme);
-    setState(() {
-      defaultThemeMode = theme;
-    });
+    setState(() => defaultThemeMode = theme);
 
-    // Update Windows title bar theme
     if (Platform.isWindows) {
-      await windowManager.setBrightness(themeProvider.isEffectiveDark() ? Brightness.dark : Brightness.light);
+      await windowManager.setBrightness(
+        themeProvider.isEffectiveDark() ? Brightness.dark : Brightness.light,
+      );
     }
   }
 
   void updateOledEnhance() {
-    dynamic color;
-    oledEnhance = setting.get(SettingBoxKey.oledEnhance, defaultValue: false);
+    Color color;
     if (defaultThemeColor == 'default') {
       color = Colors.green;
     } else {
@@ -143,276 +125,229 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final fontFamily = Theme.of(context).textTheme.bodyMedium?.fontFamily;
+    final scheme = Theme.of(context).colorScheme;
+
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        onBackPressed(context);
-      },
+      onPopInvokedWithResult: (_, _) => onBackPressed(context),
       child: Scaffold(
         appBar: const SysAppBar(title: Text('外观设置')),
-        body: SettingsList(
-          maxWidth: 1000,
-          sections: [
-            SettingsSection(
-              title: Text('外观', style: TextStyle(fontFamily: fontFamily)),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: KazumiSpacing.md,
+            vertical: KazumiSpacing.sm,
+          ),
+          children: [
+            SettingsSectionCard(
+              title: '外观',
+              icon: Icons.palette_rounded,
               tiles: [
-                SettingsTile.navigation(
-                  onPressed: (_) {
-                    if (menuController.isOpen) {
-                      menuController.close();
-                    } else {
-                      menuController.open();
-                    }
+                SettingsNavTile(
+                  leading: const Icon(Icons.brightness_6_rounded),
+                  title: '深色模式',
+                  subtitle: defaultThemeMode == 'light'
+                      ? '浅色'
+                      : (defaultThemeMode == 'dark' ? '深色' : '跟随系统'),
+                  trailing: _themeModeSelector(),
+                  onTap: () {
+                    menuController.isOpen
+                        ? menuController.close()
+                        : menuController.open();
                   },
-                  title: Text('深色模式', style: TextStyle(fontFamily: fontFamily)),
-                  value: MenuAnchor(
-                    consumeOutsideTap: true,
-                    controller: menuController,
-                    builder: (_, __, ___) {
-                      return Text(
-                        defaultThemeMode == 'light'
-                            ? '浅色'
-                            : (defaultThemeMode == 'dark' ? '深色' : '跟随系统'),
-                        style: TextStyle(fontFamily: fontFamily),
-                      );
-                    },
-                    menuChildren: [
-                      MenuItemButton(
-                        requestFocusOnHover: false,
-                        onPressed: () => updateTheme('system'),
-                        child: Container(
-                          height: 48,
-                          constraints: BoxConstraints(minWidth: 112),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.brightness_auto_rounded,
-                                  color: defaultThemeMode == 'system'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  '跟随系统',
-                                  style: TextStyle(
-                                    color: defaultThemeMode == 'system'
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                    fontFamily: fontFamily,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      MenuItemButton(
-                        requestFocusOnHover: false,
-                        onPressed: () => updateTheme('light'),
-                        child: Container(
-                          height: 48,
-                          constraints: BoxConstraints(minWidth: 112),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.light_mode_rounded,
-                                  color: defaultThemeMode == 'light'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  '浅色',
-                                  style: TextStyle(
-                                      color: defaultThemeMode == 'light'
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                          : null,
-                                      fontFamily: fontFamily),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      MenuItemButton(
-                        requestFocusOnHover: false,
-                        onPressed: () => updateTheme('dark'),
-                        child: Container(
-                          height: 48,
-                          constraints: BoxConstraints(minWidth: 112),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.dark_mode_rounded,
-                                  color: defaultThemeMode == 'dark'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  '深色',
-                                  style: TextStyle(
-                                    color: defaultThemeMode == 'dark'
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                    fontFamily: fontFamily,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-                SettingsTile.navigation(
-                  enabled: !useDynamicColor,
-                  onPressed: (_) async {
-                    KazumiDialog.show(builder: (context) {
-                      return AlertDialog(
-                        title: Text('配色方案',
-                            style: TextStyle(fontFamily: fontFamily)),
-                        content: StatefulBuilder(builder:
-                            (BuildContext context, StateSetter setState) {
-                          final List<Map<String, dynamic>> colorThemes =
-                              colorThemeTypes;
-                          return Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 8,
-                            runSpacing: Utils.isDesktop() ? 8 : 0,
-                            children: [
-                              ...colorThemes.map(
-                                (e) {
-                                  final index = colorThemes.indexOf(e);
-                                  return GestureDetector(
-                                    onTap: () {
-                                      index == 0
-                                          ? resetTheme()
-                                          : setTheme(e['color']);
-                                      KazumiDialog.dismiss();
-                                    },
-                                    child: Column(
-                                      children: [
-                                        PaletteCard(
-                                          color: e['color'],
-                                          selected: (e['color']
-                                                      .value
-                                                      .toRadixString(16) ==
-                                                  defaultThemeColor ||
-                                              (defaultThemeColor == 'default' &&
-                                                  index == 0)),
-                                        ),
-                                        Text(e['label']),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              )
-                            ],
-                          );
-                        }),
-                      );
-                    });
-                  },
-                  title: Text('配色方案', style: TextStyle(fontFamily: fontFamily)),
+                SettingsNavTile(
+                  leading: const Icon(Icons.color_lens_rounded),
+                  title: '配色方案',
+                  onTap: () => _showColorPicker(),
                 ),
-                SettingsTile.switchTile(
-                  enabled: !Platform.isIOS,
-                  onToggle: (value) async {
-                    useDynamicColor = value ?? !useDynamicColor;
+                SettingsSwitchTile(
+                  leading: const Icon(Icons.auto_awesome_rounded),
+                  title: '动态配色',
+                  subtitle: '仅支持安卓12及以上和桌面平台',
+                  value: useDynamicColor,
+                  onChanged: (value) async {
+                    if (Platform.isIOS) return;
+                    useDynamicColor = value;
                     await setting.put(
                         SettingBoxKey.useDynamicColor, useDynamicColor);
                     themeProvider.setDynamic(useDynamicColor);
                     setState(() {});
                   },
-                  title: Text('动态配色', style: TextStyle(fontFamily: fontFamily)),
-                  initialValue: useDynamicColor,
                 ),
-                SettingsTile.switchTile(
-                  onToggle: (value) async {
-                    useSystemFont = value ?? !useSystemFont;
+                SettingsSwitchTile(
+                  leading: const Icon(Icons.font_download_rounded),
+                  title: '使用系统字体',
+                  subtitle: '关闭后使用 MI Sans 字体',
+                  value: useSystemFont,
+                  onChanged: (value) async {
+                    useSystemFont = value;
                     await setting.put(
                         SettingBoxKey.useSystemFont, useSystemFont);
                     themeProvider.setFontFamily(useSystemFont);
-                    dynamic color;
-                    if (defaultThemeColor == 'default') {
-                      color = Colors.green;
-                    } else {
-                      color = Color(int.parse(defaultThemeColor, radix: 16));
-                    }
-                    setTheme(color);
+                    setTheme(defaultThemeColor == 'default'
+                        ? Colors.green
+                        : Color(int.parse(defaultThemeColor, radix: 16)));
                     setState(() {});
                   },
-                  title:
-                      Text('使用系统字体', style: TextStyle(fontFamily: fontFamily)),
-                  description: Text('关闭后使用 MI Sans 字体',
-                      style: TextStyle(fontFamily: fontFamily)),
-                  initialValue: useSystemFont,
+                  isLast: true,
                 ),
               ],
-              bottomInfo: Text('动态配色仅支持安卓12及以上和桌面平台',
-                  style: TextStyle(fontFamily: fontFamily)),
             ),
-            SettingsSection(
+            const SizedBox(height: KazumiSpacing.md),
+            SettingsSectionCard(
+              title: '深色模式增强',
+              icon: Icons.dark_mode_rounded,
               tiles: [
-                SettingsTile.switchTile(
-                  onToggle: (value) async {
-                    oledEnhance = value ?? !oledEnhance;
+                SettingsSwitchTile(
+                  leading: const Icon(Icons.phone_android_rounded),
+                  title: 'OLED优化',
+                  subtitle: '深色模式下使用纯黑背景',
+                  value: oledEnhance,
+                  onChanged: (value) async {
+                    oledEnhance = value;
                     await setting.put(SettingBoxKey.oledEnhance, oledEnhance);
                     updateOledEnhance();
                     setState(() {});
                   },
-                  title:
-                      Text('OLED优化', style: TextStyle(fontFamily: fontFamily)),
-                  description: Text('深色模式下使用纯黑背景',
-                      style: TextStyle(fontFamily: fontFamily)),
-                  initialValue: oledEnhance,
+                  isLast: !Utils.isDesktop() && !Platform.isAndroid,
                 ),
-              ],
-            ),
-            if (Utils.isDesktop())
-              SettingsSection(
-                tiles: [
-                  SettingsTile.switchTile(
-                    onToggle: (value) async {
-                      showWindowButton = value ?? !showWindowButton;
+                if (Utils.isDesktop())
+                  SettingsSwitchTile(
+                    leading: const Icon(Icons.window_rounded),
+                    title: '使用系统标题栏',
+                    subtitle: '重启应用生效',
+                    value: showWindowButton,
+                    onChanged: (value) async {
+                      showWindowButton = value;
                       await setting.put(
                           SettingBoxKey.showWindowButton, showWindowButton);
                       setState(() {});
                     },
-                    title: Text('使用系统标题栏',
-                        style: TextStyle(fontFamily: fontFamily)),
-                    description: Text('重启应用生效',
-                        style: TextStyle(fontFamily: fontFamily)),
-                    initialValue: showWindowButton,
+                    isLast: !Platform.isAndroid,
                   ),
-                ],
-              ),
-            if (Platform.isAndroid)
-              SettingsSection(
-                tiles: [
-                  SettingsTile.navigation(
-                    onPressed: (_) async {
-                      Modular.to.pushNamed('/settings/theme/display');
-                    },
-                    title:
-                        Text('屏幕帧率', style: TextStyle(fontFamily: fontFamily)),
+                if (Platform.isAndroid)
+                  SettingsNavTile(
+                    leading: const Icon(Icons.screenshot_monitor_rounded),
+                    title: '屏幕帧率',
+                    onTap: () =>
+                        Modular.to.pushNamed('/settings/theme/display'),
+                    isLast: true,
                   ),
-                ],
-              ),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _themeModeSelector() {
+    final scheme = Theme.of(context).colorScheme;
+    return MenuAnchor(
+      consumeOutsideTap: true,
+      controller: menuController,
+      builder: (_, __, ___) => const SizedBox.shrink(),
+      menuChildren: [
+        _menuItem(
+          icon: Icons.brightness_auto_rounded,
+          label: '跟随系统',
+          selected: defaultThemeMode == 'system',
+          onTap: () => updateTheme('system'),
+          scheme: scheme,
+        ),
+        _menuItem(
+          icon: Icons.light_mode_rounded,
+          label: '浅色',
+          selected: defaultThemeMode == 'light',
+          onTap: () => updateTheme('light'),
+          scheme: scheme,
+        ),
+        _menuItem(
+          icon: Icons.dark_mode_rounded,
+          label: '深色',
+          selected: defaultThemeMode == 'dark',
+          onTap: () => updateTheme('dark'),
+          scheme: scheme,
+        ),
+      ],
+    );
+  }
+
+  Widget _menuItem({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    required ColorScheme scheme,
+  }) {
+    return MenuItemButton(
+      requestFocusOnHover: false,
+      onPressed: onTap,
+      child: SizedBox(
+        height: 48,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? scheme.primary : scheme.onSurface,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showColorPicker() async {
+    KazumiDialog.show(
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('配色方案'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: Utils.isDesktop() ? 8 : 0,
+                children: colorThemeTypes.map((e) {
+                  final index = colorThemeTypes.indexOf(e);
+                  return GestureDetector(
+                    onTap: () {
+                      index == 0 ? resetTheme() : setTheme(e['color']);
+                      KazumiDialog.dismiss();
+                    },
+                    child: Column(
+                      children: [
+                        PaletteCard(
+                          color: e['color'],
+                          selected: (e['color']
+                                      .value
+                                      .toRadixString(16) ==
+                                  defaultThemeColor ||
+                              (defaultThemeColor == 'default' &&
+                                  index == 0)),
+                        ),
+                        Text(e['label']),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

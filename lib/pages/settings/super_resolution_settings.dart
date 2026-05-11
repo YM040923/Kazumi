@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
-import 'package:card_settings_ui/card_settings_ui.dart';
 
 class SuperResolutionSettings extends StatefulWidget {
   const SuperResolutionSettings({super.key});
@@ -15,92 +16,107 @@ class SuperResolutionSettings extends StatefulWidget {
 class _SuperResolutionSettingsState extends State<SuperResolutionSettings> {
   late final Box setting = GStorage.setting;
   late bool promptOnEnable;
-  late final ValueNotifier<String> superResolutionType = ValueNotifier<String>(
-    setting
-        .get(SettingBoxKey.defaultSuperResolutionType, defaultValue: 1)
-        .toString(),
-  );
+  late String selected;
 
   @override
   void initState() {
     super.initState();
     promptOnEnable =
         setting.get(SettingBoxKey.superResolutionWarn, defaultValue: false);
+    selected = setting
+        .get(SettingBoxKey.defaultSuperResolutionType, defaultValue: 1)
+        .toString();
   }
+
+  static const _options = [
+    ('OFF', '默认禁用超分辨率', '1'),
+    ('Efficiency', '默认启用基于Anime4K的超分辨率 (效率优先)', '2'),
+    ('Quality', '默认启用基于Anime4K的超分辨率 (质量优先)', '3'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final fontFamily = Theme.of(context).textTheme.bodyMedium?.fontFamily;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: const SysAppBar(
-        title: Text('超分辨率'),
-      ),
-      body: SettingsList(
-        maxWidth: 1000,
-        sections: [
-          SettingsSection(
-              title: Text(
-                  '超分辨率需要启用硬件解码, 若启用硬件解码后仍然不生效, 尝试切换视频渲染器为 gpu', style: TextStyle(fontFamily: fontFamily)),
-              tiles: [
-                SettingsTile<String>.radioTile(
-                  title: Text("OFF", style: TextStyle(fontFamily: fontFamily)),
-                  description: Text("默认禁用超分辨率", style: TextStyle(fontFamily: fontFamily)),
-                  radioValue: "1",
-                  groupValue: superResolutionType.value,
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      setting.put(SettingBoxKey.defaultSuperResolutionType,
-                          int.tryParse(value) ?? 1);
-                      setState(() {
-                        superResolutionType.value = value;
-                      });
-                    }
-                  },
-                ),
-                SettingsTile<String>.radioTile(
-                  title: Text("Efficiency", style: TextStyle(fontFamily: fontFamily)),
-                  description: Text("默认启用基于Anime4K的超分辨率 (效率优先)", style: TextStyle(fontFamily: fontFamily)),
-                  radioValue: "2",
-                  groupValue: superResolutionType.value,
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      setting.put(SettingBoxKey.defaultSuperResolutionType,
-                          int.tryParse(value) ?? 1);
-                      setState(() {
-                        superResolutionType.value = value;
-                      });
-                    }
-                  },
-                ),
-                SettingsTile<String>.radioTile(
-                  title: Text("Quality", style: TextStyle(fontFamily: fontFamily)),
-                  description: Text("默认启用基于Anime4K的超分辨率 (质量优先)", style: TextStyle(fontFamily: fontFamily)),
-                  radioValue: "3",
-                  groupValue: superResolutionType.value,
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      setting.put(SettingBoxKey.defaultSuperResolutionType,
-                          int.tryParse(value) ?? 1);
-                      setState(() {
-                        superResolutionType.value = value;
-                      });
-                    }
-                  },
-                )
-              ]),
-          SettingsSection(
-            title: Text('默认行为', style: TextStyle(fontFamily: fontFamily)),
+      appBar: const SysAppBar(title: Text('超分辨率')),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: KazumiSpacing.md,
+          vertical: KazumiSpacing.sm,
+        ),
+        children: [
+          SettingsSectionCard(
+            title: '超分辨率需要启用硬件解码，若启用后仍不生效，尝试切换渲染器为 gpu',
+            icon: Icons.hd_rounded,
+            tiles: _options.map((o) {
+              final isLast = _options.last.$3 == o.$3;
+              final isSelected = selected == o.$3;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: KazumiSpacing.lg),
+                    title: Text(o.$1,
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        )),
+                    subtitle: Text(o.$2,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        )),
+                    value: o.$3,
+                    groupValue: selected,
+                    activeColor: scheme.primary,
+                    selected: isSelected,
+                    onChanged: (v) {
+                      if (v != null) {
+                        setting.put(SettingBoxKey.defaultSuperResolutionType,
+                            int.tryParse(v) ?? 1);
+                        setState(() => selected = v);
+                      }
+                    },
+                    shape: RoundedRectangleBorder(
+                      borderRadius: isLast
+                          ? BorderRadius.only(
+                              bottomLeft: Radius.circular(KazumiRadius.md),
+                              bottomRight: Radius.circular(KazumiRadius.md),
+                            )
+                          : BorderRadius.zero,
+                    ),
+                  ),
+                  if (!isLast)
+                    Divider(
+                      height: 1,
+                      indent: KazumiSpacing.lg + 22 + KazumiSpacing.md,
+                      endIndent: KazumiSpacing.lg,
+                      color: scheme.outlineVariant,
+                    ),
+                ],
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: KazumiSpacing.md),
+          SettingsSectionCard(
+            title: '默认行为',
+            icon: Icons.tune_rounded,
             tiles: [
-              SettingsTile.switchTile(
-                title: Text('关闭提示', style: TextStyle(fontFamily: fontFamily)),
-                description: Text('关闭每次启用超分辨率时的提示', style: TextStyle(fontFamily: fontFamily)),
-                initialValue: promptOnEnable,
-                onToggle: (value) async {
-                  promptOnEnable = value ?? !promptOnEnable;
+              SettingsSwitchTile(
+                leading: const Icon(Icons.notifications_off_rounded),
+                title: '关闭提示',
+                subtitle: '关闭每次启用超分辨率时的提示',
+                value: promptOnEnable,
+                onChanged: (v) async {
+                  promptOnEnable = v;
                   await setting.put(
                       SettingBoxKey.superResolutionWarn, promptOnEnable);
                   if (mounted) setState(() {});
                 },
+                isLast: true,
               ),
             ],
           ),
