@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
-import 'package:kazumi/bean/widget/settings_components.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/pages/menu/menu.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +8,6 @@ import 'package:kazumi/bean/dialog/dialog_helper.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
-
   @override
   State<MyPage> createState() => _MyPageState();
 }
@@ -18,160 +16,58 @@ class _MyPageState extends State<MyPage> {
   late NavigationBarState navigationBarState;
 
   void onBackPressed(BuildContext context) {
-    if (KazumiDialog.observer.hasKazumiDialog) {
-      KazumiDialog.dismiss();
-      return;
-    }
+    if (KazumiDialog.observer.hasKazumiDialog) { KazumiDialog.dismiss(); return; }
     navigationBarState.updateSelectedIndex(0);
     Modular.to.navigate('/tab/popular/');
   }
 
   @override
-  void initState() {
-    super.initState();
-    navigationBarState =
-        Provider.of<NavigationBarState>(context, listen: false);
-  }
+  void initState() { super.initState(); navigationBarState = Provider.of<NavigationBarState>(context, listen: false); }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (didPop) return;
-        onBackPressed(context);
-      },
-      child: Scaffold(
-        appBar: const SysAppBar(title: Text('我的'), needTopOffset: false),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KazumiSpacing.md,
-            vertical: KazumiSpacing.sm,
-          ),
-          children: [
-            const SettingsSectionCard(
-              title: '播放历史与视频源',
-              icon: Icons.play_circle_outline_rounded,
-              tiles: [
-                SettingsNavTile(
-                  leading: Icon(Icons.history_rounded),
-                  title: '历史记录',
-                  subtitle: '查看播放历史记录',
-                  onTap: _navToHistory,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.download_rounded),
-                  title: '下载管理',
-                  subtitle: '查看和管理离线下载',
-                  onTap: _navToDownload,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.settings_rounded),
-                  title: '下载设置',
-                  subtitle: '配置下载并发数等参数',
-                  onTap: _navToDownloadSettings,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.extension_rounded),
-                  title: '规则管理',
-                  subtitle: '管理番剧资源规则',
-                  onTap: _navToPlugin,
-                  isLast: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: KazumiSpacing.md),
-            const SettingsSectionCard(
-              title: '播放器设置',
-              icon: Icons.play_circle_filled_rounded,
-              tiles: [
-                SettingsNavTile(
-                  leading: Icon(Icons.display_settings_rounded),
-                  title: '播放设置',
-                  subtitle: '设置播放器相关参数',
-                  onTap: _navToPlayer,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.subtitles_rounded),
-                  title: '弹幕设置',
-                  subtitle: '设置弹幕相关参数',
-                  onTap: _navToDanmaku,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.keyboard_rounded),
-                  title: '操作设置',
-                  subtitle: '设置播放器按键映射',
-                  onTap: _navToKeyboard,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.vpn_key_rounded),
-                  title: '代理设置',
-                  subtitle: '配置HTTP代理',
-                  onTap: _navToProxy,
-                  isLast: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: KazumiSpacing.md),
-            const SettingsSectionCard(
-              title: '应用与外观',
-              icon: Icons.palette_outlined,
-              tiles: [
-                SettingsNavTile(
-                  leading: Icon(Icons.palette_rounded),
-                  title: '外观设置',
-                  subtitle: '设置应用主题和刷新率',
-                  onTap: _navToTheme,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.pages_rounded),
-                  title: '界面设置',
-                  subtitle: '设置应用界面样式',
-                  onTap: _navToInterface,
-                ),
-                SettingsNavTile(
-                  leading: Icon(Icons.cloud_outlined),
-                  title: '同步设置',
-                  subtitle: '设置同步参数',
-                  onTap: _navToWebdav,
-                  isLast: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: KazumiSpacing.md),
-            const SettingsSectionCard(
-              title: '其他',
-              icon: Icons.more_horiz_rounded,
-              tiles: [
-                SettingsNavTile(
-                  leading: Icon(Icons.info_outline_rounded),
-                  title: '关于',
-                  subtitle: '版本信息与致谢',
-                  onTap: _navToAbout,
-                  isLast: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: KazumiSpacing.xl),
-          ],
-        ),
-      ),
-    );
+    final scheme = Theme.of(context).colorScheme;
+    return PopScope(canPop: false, onPopInvokedWithResult: (didPop, result) { if (didPop) return; onBackPressed(context); }, child: Scaffold(appBar: const SysAppBar(title: Text('My'), needTopOffset: false), body: ListView(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), children: [
+      _section('Library', Icons.play_circle_outline_rounded, Colors.blue, [
+        _nav(Icons.history_rounded, 'History', onTap: () => Modular.to.pushNamed('/settings/history/')),
+        _nav(Icons.download_rounded, 'Downloads', onTap: () => Modular.to.pushNamed('/settings/download/')),
+        _nav(Icons.dns_rounded, 'Download settings', onTap: () => Modular.to.pushNamed('/settings/download-settings')),
+        _nav(Icons.extension_rounded, 'Rules', onTap: () => Modular.to.pushNamed('/settings/plugin/'), last: true),
+      ]),
+      const SizedBox(height: 16),
+      _section('Player', Icons.play_circle_filled_rounded, Colors.purple, [
+        _nav(Icons.display_settings_rounded, 'Player settings', onTap: () => Modular.to.pushNamed('/settings/player')),
+        _nav(Icons.subtitles_rounded, 'Danmaku', onTap: () => Modular.to.pushNamed('/settings/danmaku/')),
+        _nav(Icons.keyboard_rounded, 'Shortcuts', onTap: () => Modular.to.pushNamed('/settings/keyboard')),
+        _nav(Icons.vpn_key_rounded, 'Proxy', onTap: () => Modular.to.pushNamed('/settings/proxy'), last: true),
+      ]),
+      const SizedBox(height: 16),
+      _section('Appearance', Icons.palette_outlined, Colors.teal, [
+        _nav(Icons.palette_rounded, 'Theme', onTap: () => Modular.to.pushNamed('/settings/theme')),
+        _nav(Icons.pages_rounded, 'Interface', onTap: () => Modular.to.pushNamed('/settings/interface')),
+        _nav(Icons.cloud_outlined, 'Sync', onTap: () => Modular.to.pushNamed('/settings/webdav/'), last: true),
+      ]),
+      const SizedBox(height: 16),
+      _section('Other', Icons.more_horiz_rounded, Colors.orange, [
+        _nav(Icons.info_outline_rounded, 'About', onTap: () => Modular.to.pushNamed('/settings/about/'), last: true),
+      ]),
+      const SizedBox(height: 32),
+    ])));
   }
 
-  // Navigation callbacks (static tear-offs for const constructors)
-  static void _navToHistory() => Modular.to.pushNamed('/settings/history/');
-  static void _navToDownload() => Modular.to.pushNamed('/settings/download/');
-  static void _navToDownloadSettings() =>
-      Modular.to.pushNamed('/settings/download-settings');
-  static void _navToPlugin() => Modular.to.pushNamed('/settings/plugin/');
-  static void _navToPlayer() => Modular.to.pushNamed('/settings/player');
-  static void _navToDanmaku() => Modular.to.pushNamed('/settings/danmaku/');
-  static void _navToKeyboard() => Modular.to.pushNamed('/settings/keyboard');
-  static void _navToProxy() => Modular.to.pushNamed('/settings/proxy');
-  static void _navToTheme() => Modular.to.pushNamed('/settings/theme');
-  static void _navToInterface() =>
-      Modular.to.pushNamed('/settings/interface');
-  static void _navToWebdav() => Modular.to.pushNamed('/settings/webdav/');
-  static void _navToAbout() => Modular.to.pushNamed('/settings/about/');
+  Widget _section(String title, IconData icon, Color color, List<Widget> children) => Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: color.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 4))]), child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Material(color: Theme.of(context).colorScheme.surfaceContainerLow, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 10), child: Row(children: [Container(padding: const EdgeInsets.all(7), decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 18, color: color)), const SizedBox(width: 12), Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface, letterSpacing: -0.2))])),
+    const Divider(height: 1, indent: 16, endIndent: 16),
+    ...children,
+  ]))));
+
+  Widget _nav(IconData icon, String title, {VoidCallback? onTap, bool last = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Row(children: [
+      Container(width: 40, height: 40, decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 20, color: scheme.onSurfaceVariant)),
+      const SizedBox(width: 12),
+      Expanded(child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: scheme.onSurface))),
+      Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant, size: 20),
+    ])));
+  }
 }
