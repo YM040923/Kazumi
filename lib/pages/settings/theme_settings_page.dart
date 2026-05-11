@@ -125,11 +125,9 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (_, _) => onBackPressed(context),
+      onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
         appBar: const SysAppBar(title: Text('外观设置')),
         body: ListView(

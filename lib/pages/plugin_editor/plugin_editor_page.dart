@@ -51,10 +51,12 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     CaptchaType.autoClickButton: '自动点击按钮',
   };
 
+  late final Plugin plugin;
+
   @override
   void initState() {
     super.initState();
-    final Plugin plugin = Modular.args.data as Plugin;
+    plugin = Modular.args.data as Plugin;
     apiController.text = plugin.api;
     typeController.text = plugin.type;
     nameController.text = plugin.name;

@@ -76,8 +76,8 @@ class KazumiTheme {
   }
 
   // ========== 卡片主题 ==========
-  static CardTheme _cardTheme(ColorScheme scheme, bool isDark) {
-    return CardTheme(
+  static CardThemeData _cardTheme(ColorScheme scheme, bool isDark) {
+    return CardThemeData(
       elevation: KazumiElevations.subtle,
       shadowColor: isDark ? Colors.black54 : Colors.black12,
       surfaceTintColor: scheme.surfaceTint,
@@ -267,8 +267,8 @@ class KazumiTheme {
   }
 
   // ========== TabBar 主题 ==========
-  static TabBarTheme _tabBarTheme(ColorScheme scheme) {
-    return TabBarTheme(
+  static TabBarThemeData _tabBarTheme(ColorScheme scheme) {
+    return TabBarThemeData(
       indicatorColor: scheme.primary,
       indicatorSize: TabBarIndicatorSize.label,
       dividerColor: Colors.transparent,
@@ -289,8 +289,8 @@ class KazumiTheme {
   }
 
   // ========== Dialog 主题 ==========
-  static DialogTheme _dialogTheme(ColorScheme scheme) {
-    return DialogTheme(
+  static DialogThemeData _dialogTheme(ColorScheme scheme) {
+    return DialogThemeData(
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(

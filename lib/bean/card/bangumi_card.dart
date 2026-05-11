@@ -119,12 +119,11 @@ class BangumiCardV extends StatelessWidget {
                       ),
                     ),
                     // 评分徽章
-                    if (bangumiItem.rating != null &&
-                        bangumiItem.rating!.score! > 0)
+                    if (bangumiItem.ratingScore > 0)
                       Positioned(
                         bottom: 6,
                         right: 6,
-                        child: _ScoreBadge(score: bangumiItem.rating!.score!),
+                        child: _ScoreBadge(score: bangumiItem.ratingScore),
                       ),
                   ],
                 ),

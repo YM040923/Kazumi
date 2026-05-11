@@ -94,7 +94,7 @@ class _PlayerSettingsPageState extends State<WebDavSettingsPage> {
                       icon: Icons.code_rounded,
                       tiles: [
                         SettingsSwitchTile(
-                          leading: const Icon(Icons.mirror_rounded),
+                          leading: const Icon(Icons.compare_arrows_rounded),
                           title: 'Github镜像',
                           subtitle: '使用镜像访问规则托管仓库',
                           value: enableGitProxy,

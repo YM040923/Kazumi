@@ -153,7 +153,7 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
 
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (_, _) => onBackPressed(context),
+      onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
         appBar: const SysAppBar(title: Text('播放设置')),
         body: ListView(
@@ -517,7 +517,6 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
     required String label,
     required ValueChanged<double> onChanged,
   }) {
-    final scheme = Theme.of(context).colorScheme;
     return SettingsNavTile(
       leading: Icon(icon),
       title: title,

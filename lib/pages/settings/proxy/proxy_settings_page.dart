@@ -52,7 +52,7 @@ class _ProxySettingsPageState extends State<ProxySettingsPage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
-      onPopInvokedWithResult: (_, _) => onBackPressed(context),
+      onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
         appBar: const SysAppBar(title: Text('代理设置')),
         body: ListView(

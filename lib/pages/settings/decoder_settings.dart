@@ -26,8 +26,6 @@ class _DecoderSettingsState extends State<DecoderSettings> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: const SysAppBar(title: Text('硬件解码器')),
       body: ListView(
@@ -39,18 +37,20 @@ class _DecoderSettingsState extends State<DecoderSettings> {
           SettingsSectionCard(
             title: '选择不受支持的解码器将回退到软件解码',
             icon: Icons.developer_board_rounded,
-            tiles: hardwareDecodersList.entries
-                .map((e) => _RadioListTile(
-                      title: e.key,
-                      subtitle: e.value,
-                      value: e.key,
+            tiles: [
+                  for (int i = 0; i < hardwareDecodersList.entries.length; i++)
+                    _RadioListTile(
+                      title: hardwareDecodersList.entries.elementAt(i).key,
+                      subtitle: hardwareDecodersList.entries.elementAt(i).value,
+                      value: hardwareDecodersList.entries.elementAt(i).key,
                       groupValue: selected,
+                      isLast: i == hardwareDecodersList.entries.length - 1,
                       onChanged: (v) {
                         setting.put(SettingBoxKey.hardwareDecoder, v);
                         setState(() => selected = v);
                       },
-                    ))
-                .toList(),
+                    ),
+                ],
           ),
         ],
       ),
