@@ -66,6 +66,17 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
   bool get _isShowingBangumiInfoSkeleton =>
       infoController.isLoading || _showBangumiInfoSkeleton;
 
+  double _detailHeaderHeight(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= LayoutBreakpoint.medium['width']!) {
+      return 386;
+    }
+    if (width >= LayoutBreakpoint.compact['width']!) {
+      return 352;
+    }
+    return 314;
+  }
+
   bool _needsBangumiInfoRefresh(BangumiItem bangumiItem) {
     final votesCount = bangumiItem.votesCount;
     final missingVoteDistribution =
@@ -455,8 +466,13 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                     stretch: true,
                     centerTitle: false,
                     expandedHeight: (Platform.isMacOS && showWindowButton)
-                        ? 308 + kTextTabBarHeight + kToolbarHeight + 22
-                        : 308 + kTextTabBarHeight + kToolbarHeight,
+                        ? _detailHeaderHeight(context) +
+                            kTextTabBarHeight +
+                            kToolbarHeight +
+                            22
+                        : _detailHeaderHeight(context) +
+                            kTextTabBarHeight +
+                            kToolbarHeight,
                     collapsedHeight: (Platform.isMacOS && showWindowButton)
                         ? kTextTabBarHeight +
                             kToolbarHeight +
@@ -491,7 +507,7 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                                   alignment: Alignment.topCenter,
                                   child: Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                        16, kToolbarHeight, 16, 0),
+                                        0, kToolbarHeight, 0, 0),
                                     child: BangumiInfoCardV(
                                       bangumiItem: infoController.bangumiItem,
                                       isLoading: showBangumiInfoSkeleton,

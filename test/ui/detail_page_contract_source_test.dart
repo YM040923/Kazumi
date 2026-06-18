@@ -24,4 +24,19 @@ void main() {
     expect(tabViewSource, isNot(contains('commentsListBody')));
     expect(tabViewSource, isNot(contains('_InfoOverviewCard')));
   });
+
+  test('detail header uses a media control room composition', () {
+    final infoCardSource =
+        File('lib/bean/card/bangumi_info_card.dart').readAsStringSync();
+
+    expect(infoCardSource, contains('_MediaControlPanel'));
+    expect(infoCardSource, contains('_PosterFrame'));
+    expect(infoCardSource, contains('_MetaPill'));
+    expect(infoCardSource, contains('_TagStrip'));
+    expect(infoCardSource, contains('CollectButton.extend'));
+    expect(infoCardSource, contains('评分'));
+    expect(infoCardSource, contains('首播'));
+    expect(infoCardSource, contains('排名'));
+    expect(infoCardSource, isNot(contains('letterSpacing: -0.5')));
+  });
 }
