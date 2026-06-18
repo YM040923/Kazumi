@@ -65,41 +65,71 @@ class InfoTabView extends StatefulWidget {
 class _InfoTabViewState extends State<InfoTabView> {
   static const double maxWidth = 1180.0;
 
+  List<Widget> _sliversWithOverlap(BuildContext context, List<Widget> slivers) {
+    try {
+      return [
+        SliverOverlapInjector(
+          handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+        ),
+        ...slivers,
+      ];
+    } catch (_) {
+      return slivers;
+    }
+  }
+
+  Widget _panelBody(Widget child) {
+    return CustomScrollView(
+      slivers: _sliversWithOverlap(context, [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: child,
+        ),
+      ]),
+    );
+  }
+
   Widget get episodeListBody {
     if (widget.episodesIsLoading) {
-      return const _EpisodeStatePanel(
-        icon: Icons.sync_rounded,
-        title: '正在加载选集',
-        message: '正在读取上一次使用的播放源和集数列表',
-        showProgress: true,
+      return _panelBody(
+        const _EpisodeStatePanel(
+          icon: Icons.sync_rounded,
+          title: '正在加载选集',
+          message: '正在读取上一次使用的播放源和集数列表',
+          showProgress: true,
+        ),
       );
     }
 
     if (widget.episodesQueryTimeout) {
-      return GeneralErrorWidget(
-        errMsg: '选集加载失败，请重新选择播放源',
-        actions: [
-          GeneralErrorButton(
-            onPressed: widget.loadEpisodes,
-            text: '重试',
-          ),
-          GeneralErrorButton(
-            onPressed: widget.openSourceSheet,
-            text: '选择播放源',
-          ),
-        ],
+      return _panelBody(
+        GeneralErrorWidget(
+          errMsg: '选集加载失败，请重新选择播放源',
+          actions: [
+            GeneralErrorButton(
+              onPressed: widget.loadEpisodes,
+              text: '重试',
+            ),
+            GeneralErrorButton(
+              onPressed: widget.openSourceSheet,
+              text: '选择播放源',
+            ),
+          ],
+        ),
       );
     }
 
     if (!widget.episodesLoaded ||
         widget.episodesIsEmpty ||
         widget.roadList.isEmpty) {
-      return _EpisodeStatePanel(
-        icon: Icons.playlist_play_rounded,
-        title: '选择播放源后显示选集',
-        message: '第一次打开这部作品时，需要先从规则聚合搜索里选择一个可用播放源。',
-        actionLabel: '搜索播放源',
-        onAction: widget.openSourceSheet,
+      return _panelBody(
+        _EpisodeStatePanel(
+          icon: Icons.playlist_play_rounded,
+          title: '选择播放源后显示选集',
+          message: '第一次打开这部作品时，需要先从规则聚合搜索里选择一个可用播放源。',
+          actionLabel: '搜索播放源',
+          onAction: widget.openSourceSheet,
+        ),
       );
     }
 
@@ -109,12 +139,14 @@ class _InfoTabViewState extends State<InfoTabView> {
     final episodeCount = math.min(road.data.length, road.identifier.length);
 
     if (episodeCount == 0) {
-      return _EpisodeStatePanel(
-        icon: Icons.playlist_remove_rounded,
-        title: '当前播放源没有可用选集',
-        message: '换一个播放源试试，或者回到详情页重新搜索规则结果。',
-        actionLabel: '重新选择播放源',
-        onAction: widget.openSourceSheet,
+      return _panelBody(
+        _EpisodeStatePanel(
+          icon: Icons.playlist_remove_rounded,
+          title: '当前播放源没有可用选集',
+          message: '换一个播放源试试，或者回到详情页重新搜索规则结果。',
+          actionLabel: '重新选择播放源',
+          onAction: widget.openSourceSheet,
+        ),
       );
     }
 
@@ -123,7 +155,7 @@ class _InfoTabViewState extends State<InfoTabView> {
         constraints: const BoxConstraints(maxWidth: maxWidth),
         child: CustomScrollView(
           key: const PageStorageKey<String>('episodes'),
-          slivers: [
+          slivers: _sliversWithOverlap(context, [
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
@@ -169,7 +201,7 @@ class _InfoTabViewState extends State<InfoTabView> {
                 },
               ),
             ),
-          ],
+          ]),
         ),
       ),
     );
@@ -177,94 +209,111 @@ class _InfoTabViewState extends State<InfoTabView> {
 
   Widget get staffListBody {
     if (widget.staffQueryTimeout) {
-      return GeneralErrorWidget(
-        errMsg: '获取失败，请重试',
-        actions: [
-          GeneralErrorButton(
-            onPressed: widget.loadStaff,
-            text: '重试',
-          ),
-        ],
+      return _panelBody(
+        GeneralErrorWidget(
+          errMsg: '获取失败，请重试',
+          actions: [
+            GeneralErrorButton(
+              onPressed: widget.loadStaff,
+              text: '重试',
+            ),
+          ],
+        ),
       );
     }
     if (widget.staffIsEmpty) {
-      return const Center(child: Text('什么都没有找到 (;´д`)'));
+      return _panelBody(const Center(child: Text('什么都没有找到 (;´д`)')));
     }
 
     final itemCount = widget.staffList.isNotEmpty ? widget.staffList.length : 8;
 
-    return ListView.builder(
+    return CustomScrollView(
       key: const PageStorageKey<String>('staff'),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SizedBox(
-              width: MediaQuery.sizeOf(context).width > maxWidth
-                  ? maxWidth
-                  : MediaQuery.sizeOf(context).width - 32,
-              child: widget.staffList.isNotEmpty
-                  ? StaffCard(staffFullItem: widget.staffList[index])
-                  : Skeletonizer.zone(
-                      child: ListTile(
-                        leading: Bone.circle(size: 36),
-                        title: Bone.text(width: 100),
-                        subtitle: Bone.text(width: 80),
-                      ),
-                    ),
-            ),
+      slivers: _sliversWithOverlap(context, [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          sliver: SliverList.builder(
+            itemCount: itemCount,
+            itemBuilder: (context, index) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(context).width > maxWidth
+                        ? maxWidth
+                        : MediaQuery.sizeOf(context).width - 32,
+                    child: widget.staffList.isNotEmpty
+                        ? StaffCard(staffFullItem: widget.staffList[index])
+                        : Skeletonizer.zone(
+                            child: ListTile(
+                              leading: Bone.circle(size: 36),
+                              title: Bone.text(width: 100),
+                              subtitle: Bone.text(width: 80),
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ]),
     );
   }
 
   Widget get charactersListBody {
     if (widget.charactersQueryTimeout) {
-      return GeneralErrorWidget(
-        errMsg: '获取失败，请重试',
-        actions: [
-          GeneralErrorButton(
-            onPressed: widget.loadCharacters,
-            text: '重试',
-          ),
-        ],
+      return _panelBody(
+        GeneralErrorWidget(
+          errMsg: '获取失败，请重试',
+          actions: [
+            GeneralErrorButton(
+              onPressed: widget.loadCharacters,
+              text: '重试',
+            ),
+          ],
+        ),
       );
     }
     if (widget.charactersIsEmpty) {
-      return const Center(child: Text('什么都没有找到 (;´д`)'));
+      return _panelBody(const Center(child: Text('什么都没有找到 (;´д`)')));
     }
 
     final itemCount =
         widget.characterList.isNotEmpty ? widget.characterList.length : 4;
 
-    return ListView.builder(
+    return CustomScrollView(
       key: const PageStorageKey<String>('characters'),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: SizedBox(
-              width: MediaQuery.sizeOf(context).width > maxWidth
-                  ? maxWidth
-                  : MediaQuery.sizeOf(context).width - 32,
-              child: widget.characterList.isNotEmpty
-                  ? CharacterCard(characterItem: widget.characterList[index])
-                  : Skeletonizer.zone(
-                      child: ListTile(
-                        leading: Bone.circle(size: 36),
-                        title: Bone.text(width: 100),
-                        subtitle: Bone.text(width: 80),
-                      ),
-                    ),
-            ),
+      slivers: _sliversWithOverlap(context, [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          sliver: SliverList.builder(
+            itemCount: itemCount,
+            itemBuilder: (context, index) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(context).width > maxWidth
+                        ? maxWidth
+                        : MediaQuery.sizeOf(context).width - 32,
+                    child: widget.characterList.isNotEmpty
+                        ? CharacterCard(
+                            characterItem: widget.characterList[index])
+                        : Skeletonizer.zone(
+                            child: ListTile(
+                              leading: Bone.circle(size: 36),
+                              title: Bone.text(width: 100),
+                              subtitle: Bone.text(width: 80),
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ]),
     );
   }
 

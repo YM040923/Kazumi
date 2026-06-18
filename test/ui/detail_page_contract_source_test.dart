@@ -18,6 +18,9 @@ void main() {
     expect(infoPageSource, isNot(contains('loadMoreComments')));
 
     expect(tabViewSource, contains('episodeListBody'));
+    expect(tabViewSource, contains('SliverOverlapInjector'));
+    expect(tabViewSource,
+        contains('NestedScrollView.sliverOverlapAbsorberHandleFor(context)'));
     expect(tabViewSource, contains('_EpisodeRoadSelector'));
     expect(tabViewSource, contains('_EpisodeTile'));
     expect(tabViewSource, isNot(contains('CommentsCard')));
@@ -36,6 +39,7 @@ void main() {
     expect(infoCardSource, contains('_TagStrip'));
     expect(infoCardSource, contains('_RatingShelf'));
     expect(infoCardSource, contains('CollectButton.extend'));
+    expect(infoCardSource, isNot(contains('const Spacer()')));
     expect(infoCardSource, contains('评分'));
     expect(infoCardSource, contains('首播'));
     expect(infoCardSource, contains('排名'));

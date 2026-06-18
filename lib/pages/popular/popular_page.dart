@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -321,22 +322,24 @@ class _PopularPageState extends State<PopularPage>
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
       actions: [
-        WindowControlInset(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                tooltip: '搜索',
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => Modular.to.pushNamed('/search/'),
-              ),
-              IconButton(
-                tooltip: '观看历史',
-                icon: const Icon(Icons.history_rounded),
-                onPressed: () => Modular.to.pushNamed('/settings/history/'),
-              ),
-              const SizedBox(width: 8),
-            ],
+        WindowControlTopActionArea(
+          child: WindowControlInset(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: '搜索',
+                  icon: const Icon(Icons.search_rounded),
+                  onPressed: () => Modular.to.pushNamed('/search/'),
+                ),
+                IconButton(
+                  tooltip: '观看历史',
+                  icon: const Icon(Icons.history_rounded),
+                  onPressed: () => Modular.to.pushNamed('/settings/history/'),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
           ),
         ),
       ],
@@ -776,16 +779,94 @@ class _SpotlightBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final imageUrl = _bangumiPosterImage(item);
+
     return Positioned.fill(
-      child: NetworkImgLayer(
-        src: _bangumiPosterImage(item),
-        width: double.infinity,
-        height: double.infinity,
-        type: 'bg',
-        quality: 96,
-        color: Colors.black.withValues(alpha: 0.12),
-        colorBlendMode: BlendMode.darken,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  scheme.primaryContainer.withValues(alpha: 0.20),
+                  scheme.surfaceContainerHighest.withValues(alpha: 0.34),
+                  scheme.secondaryContainer.withValues(alpha: 0.18),
+                ],
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.58,
+              heightFactor: 1,
+              child: _SpotlightBackdropPoster(imageUrl: imageUrl),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _SpotlightBackdropPoster extends StatelessWidget {
+  const _SpotlightBackdropPoster({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight;
+        if (!height.isFinite || height <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        final posterWidth = height * 0.68;
+
+        return Align(
+          alignment: Alignment.center,
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 9, sigmaY: 9),
+            child: Opacity(
+              opacity:
+                  Theme.of(context).brightness == Brightness.dark ? 0.52 : 0.36,
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.transparent,
+                      Colors.white,
+                      Colors.white,
+                      Colors.transparent,
+                    ],
+                    stops: [0, 0.18, 0.82, 1],
+                  ).createShader(bounds);
+                },
+                child: SizedBox(
+                  width: posterWidth,
+                  height: height,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

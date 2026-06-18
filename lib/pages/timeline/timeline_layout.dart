@@ -1,6 +1,6 @@
 double timelinePosterGridGap(double contentWidth) {
-  if (contentWidth >= 1280) return 16;
-  if (contentWidth >= 840) return 14;
+  if (contentWidth >= 1280) return 22;
+  if (contentWidth >= 840) return 18;
   return 12;
 }
 
@@ -10,10 +10,11 @@ double timelinePosterTextHeight(double contentWidth) {
 }
 
 int timelinePosterGridColumnCount(double contentWidth) {
-  if (contentWidth >= 1480) return 8;
-  if (contentWidth >= 1240) return 7;
-  if (contentWidth >= 1020) return 6;
-  if (contentWidth >= 800) return 5;
+  if (contentWidth >= 1500) return 9;
+  if (contentWidth >= 1320) return 8;
+  if (contentWidth >= 1120) return 7;
+  if (contentWidth >= 920) return 6;
+  if (contentWidth >= 720) return 5;
   if (contentWidth >= 580) return 4;
   return 3;
 }

@@ -820,13 +820,16 @@ class _CollectTabData {
 }
 
 int _collectGridColumns(double contentWidth) {
-  if (contentWidth >= 1080) return 6;
-  if (contentWidth >= 860) return 5;
+  if (contentWidth >= 1500) return 8;
+  if (contentWidth >= 1260) return 7;
+  if (contentWidth >= 1040) return 6;
+  if (contentWidth >= 820) return 5;
   if (contentWidth >= 620) return 4;
   return 3;
 }
 
 double _collectGridGap(double contentWidth) {
-  if (contentWidth >= 980) return 14;
-  return 12;
+  if (contentWidth >= 1260) return 22;
+  if (contentWidth >= 820) return 18;
+  return 14;
 }

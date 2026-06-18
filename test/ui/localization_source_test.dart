@@ -30,7 +30,7 @@ void main() {
 
     expect(desktopLayoutSource, contains('sidebarWidth = 86'));
     expect(desktopLayoutSource, contains('pageMaxWidth = 920'));
-    expect(desktopLayoutSource, contains('mediaPageMaxWidth = 1180'));
+    expect(desktopLayoutSource, contains('mediaPageMaxWidth = 1560'));
     expect(desktopLayoutSource, contains('final frameWidth'));
     expect(desktopLayoutSource, contains('width: frameWidth'));
 
@@ -120,7 +120,7 @@ void main() {
         mainSource, contains('_initialDesktopWindowSize(initialWindowSize)'));
     expect(mainSource,
         contains('GStorage.setting.get(SettingBoxKey.desktopWindowWidth'));
-    expect(appWidgetSource, contains('_persistDesktopWindowSize'));
+    expect(appWidgetSource, contains('_persistDesktopWindowPlacement'));
     expect(appWidgetSource, contains('onWindowResize'));
     expect(appWidgetSource, contains('windowManager.getSize()'));
 

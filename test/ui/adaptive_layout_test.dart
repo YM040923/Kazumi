@@ -19,7 +19,7 @@ void main() {
 
     final wide = KazumiPageMetrics.fromViewport(width: 1500, height: 960);
     expect(wide.gutter, 32);
-    expect(wide.contentWidth, 1180);
+    expect(wide.contentWidth, 1436);
     expect(wide.windowClass, KazumiWindowClass.ultrawide);
   });
 
@@ -55,7 +55,7 @@ void main() {
             width: 1600,
             height: 900,
             child: KazumiDesktopPageFrame(
-              maxWidth: 1180,
+              maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
               child: SizedBox(key: childKey, height: 20),
             ),
           ),
@@ -66,8 +66,7 @@ void main() {
     final topLeft = tester.getTopLeft(find.byKey(childKey));
     final size = tester.getSize(find.byKey(childKey));
 
-    expect(size.width, 1180);
-    expect(topLeft.dx, closeTo(210, 0.01));
+    expect(size.width, 1536);
+    expect(topLeft.dx, closeTo(32, 0.01));
   });
 }
-

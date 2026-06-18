@@ -35,3 +35,19 @@ class WindowControlInset extends StatelessWidget {
   }
 }
 
+class WindowControlTopActionArea extends StatelessWidget {
+  const WindowControlTopActionArea({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: WindowControlMetrics.controlHeight,
+      child: Center(child: child),
+    );
+  }
+}

@@ -2,44 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/bangumi/bangumi_tag.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/pages/info/info_tabview.dart';
-import 'package:kazumi/utils/ui_verification_fixtures.dart';
-
-import 'ui_test_fixtures.dart';
 
 void main() {
   setUpAll(() {
     Modular.bindModule(_InfoTabViewTestModule());
   });
 
-  testWidgets('overview tab renders summary facts and tags', (tester) async {
+  testWidgets('episode tab renders loaded roads and plays selected episode',
+      (tester) async {
     late TabController tabController;
+    int? playedRoad;
+    int? playedEpisode;
 
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(useMaterial3: true),
         home: DefaultTabController(
-          length: 5,
+          length: 3,
           child: Builder(
             builder: (context) {
               tabController = DefaultTabController.of(context);
               return Scaffold(
                 body: SizedBox(
                   width: 1280,
-                  height: 360,
+                  height: 420,
                   child: InfoTabView(
-                    commentsQueryTimeout: false,
-                    commentsIsEmpty: false,
+                    episodesIsLoading: false,
+                    episodesQueryTimeout: false,
+                    episodesIsEmpty: false,
+                    episodesLoaded: true,
+                    selectedEpisodeRoad: 0,
+                    roadList: [
+                      Road(
+                        name: '主线路',
+                        data: const ['a', 'b'],
+                        identifier: const ['第 1 集', '第 2 集'],
+                      ),
+                    ],
                     charactersQueryTimeout: false,
                     charactersIsEmpty: false,
                     staffQueryTimeout: false,
                     staffIsEmpty: false,
                     tabController: tabController,
-                    loadMoreComments: ({int offset = 0}) async {},
+                    loadEpisodes: () async {},
+                    openSourceSheet: () {},
+                    selectEpisodeRoad: (_) {},
+                    playEpisode: ({required int road, required int episode}) {
+                      playedRoad = road;
+                      playedEpisode = episode;
+                    },
                     loadCharacters: () async {},
                     loadStaff: () async {},
-                    bangumiItem: makeUiVerificationBangumiItems().first,
-                    commentsList: const [],
+                    bangumiItem: _makeBangumiItem(),
                     characterList: const [],
                     staffList: const [],
                     isLoading: false,
@@ -55,85 +72,95 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('媒体简介'), findsOneWidget);
-    expect(find.text('基础信息'), findsOneWidget);
-    expect(find.text('主题标签'), findsOneWidget);
-    expect(find.textContaining('勇者一行击败魔王'), findsOneWidget);
+    expect(find.text('主线路'), findsOneWidget);
+    expect(find.text('第 1 集'), findsOneWidget);
+
+    await tester.tap(find.text('第 2 集'));
+    expect(playedRoad, 0);
+    expect(playedEpisode, 2);
   });
 
-  testWidgets('overview tab ignores stale page storage scroll offset',
+  testWidgets('episode tab prompts source search before roads are loaded',
       (tester) async {
-    final bucket = PageStorageBucket();
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: PageStorage(
-          bucket: bucket,
-          child: Scaffold(
-            body: SizedBox(
-              width: 1280,
-              height: 360,
-              child: ListView(
-                key: PageStorageKey<String>('概览'),
-                children: [
-                  SizedBox(height: 1400),
-                  Text('stored bottom'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pump();
-
     late TabController tabController;
+    var openedSourceSheet = false;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(useMaterial3: true),
-        home: PageStorage(
-          bucket: bucket,
-          child: DefaultTabController(
-            length: 5,
-            child: Builder(
-              builder: (context) {
-                tabController = DefaultTabController.of(context);
-                return Scaffold(
-                  body: SizedBox(
-                    width: 1280,
-                    height: 360,
-                    child: InfoTabView(
-                      commentsQueryTimeout: false,
-                      commentsIsEmpty: false,
-                      charactersQueryTimeout: false,
-                      charactersIsEmpty: false,
-                      staffQueryTimeout: false,
-                      staffIsEmpty: false,
-                      tabController: tabController,
-                      loadMoreComments: ({int offset = 0}) async {},
-                      loadCharacters: () async {},
-                      loadStaff: () async {},
-                      bangumiItem: makeTestBangumiItem(),
-                      commentsList: const [],
-                      characterList: const [],
-                      staffList: const [],
-                      isLoading: false,
-                    ),
+        home: DefaultTabController(
+          length: 3,
+          child: Builder(
+            builder: (context) {
+              tabController = DefaultTabController.of(context);
+              return Scaffold(
+                body: SizedBox(
+                  width: 900,
+                  height: 420,
+                  child: InfoTabView(
+                    episodesIsLoading: false,
+                    episodesQueryTimeout: false,
+                    episodesIsEmpty: true,
+                    episodesLoaded: false,
+                    selectedEpisodeRoad: 0,
+                    roadList: const [],
+                    charactersQueryTimeout: false,
+                    charactersIsEmpty: false,
+                    staffQueryTimeout: false,
+                    staffIsEmpty: false,
+                    tabController: tabController,
+                    loadEpisodes: () async {},
+                    openSourceSheet: () {
+                      openedSourceSheet = true;
+                    },
+                    selectEpisodeRoad: (_) {},
+                    playEpisode: ({required int road, required int episode}) {},
+                    loadCharacters: () async {},
+                    loadStaff: () async {},
+                    bangumiItem: _makeBangumiItem(),
+                    characterList: const [],
+                    staffList: const [],
+                    isLoading: false,
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
     );
+
     await tester.pump();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('媒体简介'), findsOneWidget);
+    expect(find.text('选择播放源后显示选集'), findsOneWidget);
+    expect(find.text('搜索播放源'), findsOneWidget);
+
+    await tester.tap(find.text('搜索播放源'));
+    expect(openedSourceSheet, isTrue);
   });
 }
 
-class _InfoTabViewTestModule extends Module {}
+BangumiItem _makeBangumiItem() {
+  return BangumiItem(
+    id: 1,
+    type: 2,
+    name: 'Demo',
+    nameCn: '示例作品',
+    summary: '用于测试详情页选集。',
+    airDate: '2026-01-01',
+    airWeekday: 4,
+    rank: 1,
+    images: const {},
+    tags: [
+      BangumiTag(name: '测试', count: 1, totalCount: 1),
+    ],
+    alias: const [],
+    ratingScore: 8.5,
+    votes: 100,
+    votesCount: const [],
+    info: '',
+  );
+}
 
+class _InfoTabViewTestModule extends Module {}

@@ -7,10 +7,11 @@ void main() {
   test('timeline poster grid columns follow content width', () {
     expect(timelinePosterGridColumnCount(520), 3);
     expect(timelinePosterGridColumnCount(640), 4);
-    expect(timelinePosterGridColumnCount(860), 5);
-    expect(timelinePosterGridColumnCount(1080), 6);
-    expect(timelinePosterGridColumnCount(1320), 7);
-    expect(timelinePosterGridColumnCount(1560), 8);
+    expect(timelinePosterGridColumnCount(760), 5);
+    expect(timelinePosterGridColumnCount(980), 6);
+    expect(timelinePosterGridColumnCount(1180), 7);
+    expect(timelinePosterGridColumnCount(1380), 8);
+    expect(timelinePosterGridColumnCount(1560), 9);
   });
 
   test('timeline uses poster-first cards instead of dense info cards', () {

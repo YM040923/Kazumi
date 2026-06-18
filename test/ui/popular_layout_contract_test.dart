@@ -7,10 +7,16 @@ void main() {
   test('poster grid column count follows available content width', () {
     expect(popularPosterGridColumnCount(520), 3);
     expect(popularPosterGridColumnCount(700), 4);
-    expect(popularPosterGridColumnCount(900), 5);
-    expect(popularPosterGridColumnCount(1160), 6);
-    expect(popularPosterGridColumnCount(1380), 7);
-    expect(popularPosterGridColumnCount(1640), 8);
+    expect(popularPosterGridColumnCount(900), 4);
+    expect(popularPosterGridColumnCount(1160), 5);
+    expect(popularPosterGridColumnCount(1380), 6);
+    expect(popularPosterGridColumnCount(1640), 7);
+  });
+
+  test('poster grid keeps wider gutters on desktop windows', () {
+    expect(popularPosterGridGap(620), 16);
+    expect(popularPosterGridGap(980), 22);
+    expect(popularPosterGridGap(1400), 28);
   });
 
   test('discover page keeps continue watching before poster wall', () {
@@ -96,6 +102,8 @@ void main() {
     );
     expect(appBarSource, isNot(contains('DesktopWindowActionRail')));
     expect(appBarSource, isNot(contains('DesktopWindowControls')));
+    expect(appBarSource, contains('WindowControlTopActionArea'));
+    expect(appBarSource, contains('toolbarHeight: 72'));
     expect(appBarSource, contains('WindowControlInset'));
 
     final featuredPosterSource = source.substring(
@@ -120,5 +128,22 @@ void main() {
     expect(copySource, contains('LayoutBuilder'));
     expect(copySource, contains('Flexible('));
     expect(copySource, contains('final tight'));
+  });
+
+  test(
+      'discover spotlight backdrop preserves poster aspect instead of covering',
+      () {
+    final source =
+        File('lib/pages/popular/popular_page.dart').readAsStringSync();
+
+    final backdropSource = source.substring(
+      source.indexOf('class _SpotlightBackdrop'),
+      source.indexOf('class _SpotlightCopy'),
+    );
+
+    expect(backdropSource, contains('_SpotlightBackdropPoster'));
+    expect(backdropSource, contains('BoxFit.contain'));
+    expect(backdropSource, isNot(contains('width: double.infinity')));
+    expect(backdropSource, isNot(contains('height: double.infinity')));
   });
 }

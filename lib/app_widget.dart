@@ -248,8 +248,6 @@ class _AppWidgetState extends State<AppWidget>
     }
   }
 
-  Future<void> _persistDesktopWindowSize() => _persistDesktopWindowPlacement();
-
   @override
   void onWindowResize() {
     _schedulePersistDesktopWindowPlacement();
@@ -427,6 +425,7 @@ class _AppWidgetState extends State<AppWidget>
 
         return MaterialApp.router(
           title: "Kazumi",
+          debugShowCheckedModeBanner: false,
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
           supportedLocales: const [
             Locale.fromSubtags(

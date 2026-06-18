@@ -326,7 +326,7 @@ class _DetailColumn extends StatelessWidget {
           _SynopsisPanel(summary: summary),
         ],
         if (!compact) ...[
-          const Spacer(),
+          const SizedBox(height: 16),
           _TagStrip(tags: bangumiItem.tags),
           const SizedBox(height: 12),
           SizedBox(

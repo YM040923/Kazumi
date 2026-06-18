@@ -8,6 +8,7 @@ void main() {
     final source = File('lib/app_widget.dart').readAsStringSync();
 
     expect(source, contains('builder: (context, child)'));
+    expect(source, contains('debugShowCheckedModeBanner: false'));
     expect(source, contains('DesktopWindowControlsOverlay('));
     expect(source, contains('child: child ?? const SizedBox.shrink()'));
     expect(source,
