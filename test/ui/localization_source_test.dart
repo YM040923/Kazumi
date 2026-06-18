@@ -508,6 +508,21 @@ void main() {
     }
   });
 
+  test('proxy editor and disabled media cards avoid old desktop chrome', () {
+    final proxyEditorSource =
+        File('lib/pages/settings/proxy/proxy_editor_page.dart')
+            .readAsStringSync();
+    final cardSource =
+        File('lib/bean/card/bangumi_card.dart').readAsStringSync();
+
+    expect(proxyEditorSource, contains('KazumiSettingsPageShell('));
+    expect(proxyEditorSource, contains('FilledButton.icon'));
+    expect(proxyEditorSource, isNot(contains('SysAppBar')));
+    expect(proxyEditorSource, isNot(contains('FloatingActionButton')));
+    expect(cardSource, contains('编辑模式下不可打开详情'));
+    expect(cardSource, isNot(contains('Edit mode')));
+  });
+
   test('detail page keeps screenshot-style five-tab media information layout',
       () {
     final source = File('lib/pages/info/info_page.dart').readAsStringSync();
