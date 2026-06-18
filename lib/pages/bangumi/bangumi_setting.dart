@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/modules/bangumi/sync_priority.dart';
 import 'package:kazumi/utils/bangumi_sync_service.dart';
@@ -140,189 +140,184 @@ class _BangumiEditorPageState extends State<BangumiEditorPage> {
     }
   }
 
+  Future<void> saveAndVerifyToken() async {
+    if (isVerifying) return;
+    final token = bangumiTokenController.text.trim();
+    final bool bangumiSyncEnable =
+        setting.get(SettingBoxKey.bangumiSyncEnable, defaultValue: false);
+
+    if (token.isEmpty && bangumiSyncEnable) {
+      KazumiDialog.showToast(message: 'Access Token 不能为空');
+      return;
+    }
+    setState(() {
+      isVerifying = true;
+    });
+    await setting.put(SettingBoxKey.bangumiAccessToken, token);
+    final bangumi = BangumiSyncService();
+
+    if (token.isEmpty) {
+      bangumi.reset();
+      KazumiDialog.showToast(message: 'Bangumi Token 为空，请检查');
+      if (!mounted) return;
+      setState(() {
+        isVerifying = false;
+      });
+      return;
+    }
+
+    KazumiDialog.showToast(message: '正在测试 Bangumi Token...');
+    try {
+      await bangumi.init();
+    } catch (e) {
+      KazumiDialog.showToast(message: '验证失败：${e.toString()}');
+      await setting.put(SettingBoxKey.bangumiSyncEnable, false);
+      if (!mounted) return;
+      setState(() {
+        isVerifying = false;
+      });
+      return;
+    }
+
+    KazumiDialog.showToast(message: '测试成功，用户名：${bangumi.username}');
+    if (!mounted) return;
+    setState(() {
+      isVerifying = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !syncCollectiblesing,
       child: Scaffold(
-        appBar: const SysAppBar(title: Text('Bangumi 配置')),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(KazumiSpacing.lg),
-          child: Center(
-            child: SizedBox(
-              width: (MediaQuery.of(context).size.width > 1000) ? 1000 : null,
-              child: Column(
-                children: [
-                  TextField(
-                    controller: bangumiTokenController,
-                    obscureText: !passwordVisible,
-                    decoration: InputDecoration(
-                      labelText: 'Bangumi Access Token',
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            passwordVisible = !passwordVisible;
-                          });
-                        },
-                        icon: Icon(passwordVisible
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: KazumiSpacing.lg),
-                  SettingsSectionCard(
-                    title: '同步设置',
-                    icon: Icons.sync_outlined,
-                    tiles: [
-                      SettingsSwitchTile(
-                        leading: const Icon(Icons.notifications_outlined),
-                        title: '即时同步提示',
-                        subtitle: '点击追番按钮触发即时同步时显示提示框',
-                        value: bangumiImmediateSyncToastEnable,
-                        onChanged: (value) async {
-                          bangumiImmediateSyncToastEnable = value;
-                          await setting.put(
-                            SettingBoxKey.bangumiImmediateSyncToastEnable,
-                            bangumiImmediateSyncToastEnable,
-                          );
-                          if (mounted) {
-                            setState(() {});
-                          }
-                        },
-                      ),
-                      SettingsNavTile(
-                        leading: const Icon(Icons.low_priority),
-                        title: '同步优先级',
-                        subtitle: '当本地与 Bangumi 状态不一致时优先使用哪个状态',
-                        trailing: MenuAnchor(
-                          consumeOutsideTap: true,
-                          controller: syncPriorityMenuController,
-                          builder: (context, controller, child) => Text(
-                              BangumiSyncPriority.fromValue(syncPriority).label),
-                          menuChildren: [
-                            for (final entry in BangumiSyncPriority.values)
-                              MenuItemButton(
-                                requestFocusOnHover: false,
-                                onPressed: () =>
-                                    updateSyncPriority(entry.value),
-                                child: Container(
-                                  height: 48,
-                                  constraints:
-                                      BoxConstraints(minWidth: 112),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      entry.label,
-                                      style: TextStyle(
-                                        color: entry.value == syncPriority
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .primary
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        onTap: () async {
-                          if (syncPriorityMenuController.isOpen) {
-                            syncPriorityMenuController.close();
-                          } else {
-                            syncPriorityMenuController.open();
-                          }
-                        },
-                      ),
-                      _ActionTile(
-                        leading: const Icon(Icons.sync_rounded),
-                        title: '立即同步状态',
-                        subtitle: '同步状态不一致或仅存在于本地/远端的条目',
-                        isLoading: syncCollectiblesing,
-                        isLast: true,
-                        onTap: () async {
-                          await syncWithProgress();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: KazumiSpacing.lg),
-                  GestureDetector(
-                    onTap: () async {
-                      final url =
-                          Uri.parse('https://next.bgm.tv/demo/access-token');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url,
-                            mode: LaunchMode.externalApplication);
-                      } else {
-                        KazumiDialog.showToast(message: '无法打开链接');
-                      }
-                    },
-                    child: Text(
-                      '你可以点击此处前往 Bangumi 生成 Access Token',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
+        body: KazumiSettingsPageShell(
+          title: 'Bangumi 配置',
+          subtitle: '配置 Access Token、同步优先级和即时同步策略。',
+          icon: Icons.tv_rounded,
+          actions: FilledButton.icon(
+            onPressed: isVerifying ? null : saveAndVerifyToken,
+            icon: isVerifying
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_rounded),
+            label: const Text('保存并测试'),
+          ),
+          children: [
+            TextField(
+              controller: bangumiTokenController,
+              obscureText: !passwordVisible,
+              decoration: InputDecoration(
+                labelText: 'Bangumi Access Token',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      passwordVisible = !passwordVisible;
+                    });
+                  },
+                  icon: Icon(passwordVisible
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded),
+                ),
               ),
             ),
-          ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: isVerifying
-            ? null
-            : () async {
-                final token = bangumiTokenController.text.trim();
-                final bool bangumiSyncEnable =
-                    setting.get(SettingBoxKey.bangumiSyncEnable,
-                        defaultValue: false);
-
-                if (token.isEmpty && bangumiSyncEnable) {
-                  KazumiDialog.showToast(message: 'Access Token 不能为空');
-                  return;
+            const SizedBox(height: KazumiSpacing.lg),
+            SettingsSectionCard(
+              title: '同步设置',
+              icon: Icons.sync_outlined,
+              tiles: [
+                SettingsSwitchTile(
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: '即时同步提示',
+                  subtitle: '点击追番按钮触发即时同步时显示提示框',
+                  value: bangumiImmediateSyncToastEnable,
+                  onChanged: (value) async {
+                    bangumiImmediateSyncToastEnable = value;
+                    await setting.put(
+                      SettingBoxKey.bangumiImmediateSyncToastEnable,
+                      bangumiImmediateSyncToastEnable,
+                    );
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  },
+                ),
+                SettingsNavTile(
+                  leading: const Icon(Icons.low_priority),
+                  title: '同步优先级',
+                  subtitle: '当本地与 Bangumi 状态不一致时优先使用哪个状态',
+                  trailing: MenuAnchor(
+                    consumeOutsideTap: true,
+                    controller: syncPriorityMenuController,
+                    builder: (context, controller, child) =>
+                        Text(BangumiSyncPriority.fromValue(syncPriority).label),
+                    menuChildren: [
+                      for (final entry in BangumiSyncPriority.values)
+                        MenuItemButton(
+                          requestFocusOnHover: false,
+                          onPressed: () => updateSyncPriority(entry.value),
+                          child: Container(
+                            height: 48,
+                            constraints: BoxConstraints(minWidth: 112),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                entry.label,
+                                style: TextStyle(
+                                  color: entry.value == syncPriority
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onTap: () async {
+                    if (syncPriorityMenuController.isOpen) {
+                      syncPriorityMenuController.close();
+                    } else {
+                      syncPriorityMenuController.open();
+                    }
+                  },
+                ),
+                _ActionTile(
+                  leading: const Icon(Icons.sync_rounded),
+                  title: '立即同步状态',
+                  subtitle: '同步状态不一致或仅存在于本地/远端的条目',
+                  isLoading: syncCollectiblesing,
+                  isLast: true,
+                  onTap: () async {
+                    await syncWithProgress();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: KazumiSpacing.lg),
+            GestureDetector(
+              onTap: () async {
+                final url = Uri.parse('https://next.bgm.tv/demo/access-token');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  KazumiDialog.showToast(message: '无法打开链接');
                 }
-                setState(() {
-                  isVerifying = true;
-                });
-                await setting.put(SettingBoxKey.bangumiAccessToken, token);
-                final bangumi = BangumiSyncService();
-
-                if (token.isEmpty) {
-                  bangumi.reset();
-                  KazumiDialog.showToast(message: 'Bangumi Token 为空，请检查');
-                  if (!mounted) return;
-                  setState(() {
-                    isVerifying = false;
-                  });
-                  return;
-                }
-
-                KazumiDialog.showToast(message: '正在测试 Bangumi Token...');
-                try {
-                  await bangumi.init();
-                } catch (e) {
-                  KazumiDialog.showToast(message: '验证失败：${e.toString()}');
-                  await setting.put(SettingBoxKey.bangumiSyncEnable, false);
-                  if (!mounted) return;
-                  setState(() {
-                    isVerifying = false;
-                  });
-                  return;
-                }
-
-                KazumiDialog.showToast(message: '测试成功，用户名：${bangumi.username}');
-                if (!mounted) return;
-                setState(() {
-                  isVerifying = false;
-                });
               },
-          child: const Icon(Icons.save),
+              child: Text(
+                '你可以点击此处前往 Bangumi 生成 Access Token',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

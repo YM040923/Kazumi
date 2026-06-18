@@ -523,6 +523,21 @@ void main() {
     expect(cardSource, isNot(contains('Edit mode')));
   });
 
+  test('sync configuration pages use the shared settings shell', () {
+    final pagePaths = [
+      'lib/pages/webdav_editor/webdav_setting.dart',
+      'lib/pages/webdav_editor/webdav_editor_page.dart',
+      'lib/pages/bangumi/bangumi_setting.dart',
+    ];
+
+    for (final path in pagePaths) {
+      final source = File(path).readAsStringSync();
+      expect(source, contains('KazumiSettingsPageShell('), reason: path);
+      expect(source, isNot(contains('SysAppBar')), reason: path);
+      expect(source, isNot(contains('FloatingActionButton')), reason: path);
+    }
+  });
+
   test('detail page keeps screenshot-style five-tab media information layout',
       () {
     final source = File('lib/pages/info/info_page.dart').readAsStringSync();
