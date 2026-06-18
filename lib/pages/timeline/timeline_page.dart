@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/pages/menu/menu.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/pages/timeline/timeline_controller.dart';
 import 'package:kazumi/pages/timeline/timeline_layout.dart';
 import 'package:kazumi/bean/card/bangumi_timeline_card.dart';
 import 'package:kazumi/design/desktop_layout.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 import 'package:kazumi/utils/utils.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/utils/storage.dart';
@@ -14,7 +18,6 @@ import 'package:provider/provider.dart';
 import 'package:kazumi/utils/anime_season.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/widget/error_widget.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 
 class TimelinePage extends StatefulWidget {
   const TimelinePage({super.key});
@@ -812,6 +815,26 @@ class _TimelinePageState extends State<TimelinePage>
     );
   }
 
+  void _showTimelineOptionsSheet(BuildContext context) {
+    KazumiDialog.showBottomSheet(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      isScrollControlled: true,
+      constraints: buildTimelineBottomSheetConstraints(
+        context,
+        compactHeightFactor: 2 / 3,
+      ),
+      clipBehavior: Clip.antiAlias,
+      useSafeArea: true,
+      context: context,
+      builder: (context) {
+        return buildTimelineOptionsSheet(context);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -823,73 +846,62 @@ class _TimelinePageState extends State<TimelinePage>
         onBackPressed(context);
       },
       child: Scaffold(
-        appBar: SysAppBar(
-          needTopOffset: false,
-          toolbarHeight: 104,
-          bottom: TabBar(
-            controller: tabController,
-            tabs: tabs,
-            indicatorColor: Theme.of(context).colorScheme.primary,
-          ),
-          title: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            child: Observer(builder: (context) {
-              return Text(timelineController.seasonString);
-            }),
-            onTap: () {
-              showSeasonBottomSheet(context);
-            },
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Observer(
+                builder: (context) {
+                  return WindowControlInset(
+                    child: _TimelineHeader(
+                      controller: tabController,
+                      tabs: tabs,
+                      seasonLabel: timelineController.seasonString,
+                      sortLabel: getSortTypeLabel(timelineController.sortType),
+                      enabledFilterCount: getEnabledTimelineFilterCount(),
+                      onSeasonTap: () => showSeasonBottomSheet(context),
+                      onOptionsTap: () => _showTimelineOptionsSheet(context),
+                    ),
+                  );
+                },
+              ),
+              Expanded(
+                child: Observer(builder: (context) {
+                  if (timelineController.isLoading &&
+                      timelineController.bangumiCalendar.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+                  if (timelineController.isTimeOut) {
+                    return Center(
+                      child: SizedBox(
+                        height: 400,
+                        child: GeneralErrorWidget(
+                          errMsg: '什么都没有找到 (´;ω;`)',
+                          actions: [
+                            GeneralErrorButton(
+                              onPressed: () {
+                                onSeasonSelected(
+                                  timelineController.selectedDate,
+                                );
+                              },
+                              text: '点击重试',
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return TabBarView(
+                    controller: tabController,
+                    children: contentGrid(timelineController.bangumiCalendar),
+                  );
+                }),
+              ),
+            ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            KazumiDialog.showBottomSheet(
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              isScrollControlled: true,
-              constraints: buildTimelineBottomSheetConstraints(
-                context,
-                compactHeightFactor: 2 / 3,
-              ),
-              clipBehavior: Clip.antiAlias,
-              useSafeArea: true,
-              context: context,
-              builder: (context) {
-                return buildTimelineOptionsSheet(context);
-              },
-            );
-          },
-          child: const Icon(Icons.tune),
-        ),
-        body: Observer(builder: (context) {
-          if (timelineController.isLoading &&
-              timelineController.bangumiCalendar.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-          if (timelineController.isTimeOut) {
-            return Center(
-              child: SizedBox(
-                height: 400,
-                child: GeneralErrorWidget(errMsg: '什么都没有找到 (´;ω;`)', actions: [
-                  GeneralErrorButton(
-                    onPressed: () {
-                      onSeasonSelected(timelineController.selectedDate);
-                    },
-                    text: '点击重试',
-                  ),
-                ]),
-              ),
-            );
-          }
-          return TabBarView(
-            controller: tabController,
-            children: contentGrid(timelineController.bangumiCalendar),
-          );
-        }),
       ),
     );
   }
@@ -982,5 +994,145 @@ class _TimelinePageState extends State<TimelinePage>
       );
     }
     return gridViewList;
+  }
+}
+
+class _TimelineHeader extends StatelessWidget {
+  const _TimelineHeader({
+    required this.controller,
+    required this.tabs,
+    required this.seasonLabel,
+    required this.sortLabel,
+    required this.enabledFilterCount,
+    required this.onSeasonTap,
+    required this.onOptionsTap,
+  });
+
+  final TabController? controller;
+  final List<Tab> tabs;
+  final String seasonLabel;
+  final String sortLabel;
+  final int enabledFilterCount;
+  final VoidCallback onSeasonTap;
+  final VoidCallback onOptionsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final filterText =
+        enabledFilterCount == 0 ? '未启用过滤' : '$enabledFilterCount 个过滤';
+
+    return Material(
+      color: scheme.surface.withValues(alpha: 0.62),
+      child: dtb.DragToMoveArea(
+        child: SafeArea(
+          bottom: false,
+          child: KazumiDesktopPageFrame(
+            maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 14, 0, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(
+                            alpha: 0.72,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.calendar_month_rounded,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '时间表',
+                              style: textTheme.headlineSmall?.copyWith(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w900,
+                                height: 1.05,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              '$seasonLabel · $sortLabel · $filterText',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: onSeasonTap,
+                            icon: const Icon(Icons.event_repeat_rounded),
+                            label: Text(seasonLabel),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed: onOptionsTap,
+                            icon: const Icon(Icons.tune_rounded),
+                            label: const Text('筛选'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  KazumiGlassSurface(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    showShadow: false,
+                    child: TabBar(
+                      controller: controller,
+                      tabs: tabs,
+                      dividerHeight: 0,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(KazumiRadius.sm),
+                        border: Border.all(
+                          color: scheme.primary.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      labelColor: scheme.primary,
+                      unselectedLabelColor: scheme.onSurfaceVariant,
+                      labelStyle: textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                      unselectedLabelStyle: textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
