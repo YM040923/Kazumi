@@ -2,14 +2,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/card/palette_card.dart';
+import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/design/desktop_layout.dart';
 import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 import 'package:kazumi/design/kazumi_theme.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/settings/theme_provider.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/settings/color_type.dart';
 import 'package:kazumi/utils/utils.dart';
 import 'package:provider/provider.dart';
@@ -138,115 +141,145 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     _applyStoredTheme();
   }
 
+  String _currentThemePresetLabel() {
+    final preset = KazumiThemePreset.fromStorageValue(defaultThemeColor);
+    if (preset != null) return preset.label;
+    return '自定义颜色';
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
-        appBar: const SysAppBar(title: Text('外观设置')),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KazumiSpacing.md,
-            vertical: KazumiSpacing.sm,
+        body: SafeArea(
+          top: false,
+          child: WindowControlInset(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              children: [
+                KazumiDesktopPageFrame(
+                  maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _ThemeSettingsHeader(),
+                      const SizedBox(height: KazumiSpacing.md),
+                      SettingsSectionCard(
+                        title: '外观',
+                        icon: Icons.palette_rounded,
+                        tiles: [
+                          SettingsNavTile(
+                            leading: const Icon(Icons.brightness_6_rounded),
+                            title: '深色模式',
+                            subtitle: defaultThemeMode == 'light'
+                                ? '浅色'
+                                : (defaultThemeMode == 'dark' ? '深色' : '跟随系统'),
+                            trailing: _themeModeSelector(),
+                            onTap: () {
+                              menuController.isOpen
+                                  ? menuController.close()
+                                  : menuController.open();
+                            },
+                          ),
+                          SettingsNavTile(
+                            leading: const Icon(Icons.color_lens_rounded),
+                            title: '配色方案',
+                            subtitle: _currentThemePresetLabel(),
+                            onTap: () => _showColorPicker(),
+                          ),
+                          SettingsSwitchTile(
+                            leading: const Icon(Icons.auto_awesome_rounded),
+                            title: '动态配色',
+                            subtitle: '仅支持安卓 12 及以上和桌面平台',
+                            value: useDynamicColor,
+                            onChanged: (value) async {
+                              if (Platform.isIOS) return;
+                              useDynamicColor = value;
+                              await setting.put(
+                                SettingBoxKey.useDynamicColor,
+                                useDynamicColor,
+                              );
+                              themeProvider.setDynamic(useDynamicColor);
+                              setState(() {});
+                            },
+                          ),
+                          SettingsSwitchTile(
+                            leading: const Icon(Icons.font_download_rounded),
+                            title: '使用系统字体',
+                            subtitle: '关闭后使用 MI Sans 字体',
+                            value: useSystemFont,
+                            onChanged: (value) async {
+                              useSystemFont = value;
+                              await setting.put(
+                                SettingBoxKey.useSystemFont,
+                                useSystemFont,
+                              );
+                              themeProvider.setFontFamily(useSystemFont);
+                              _applyStoredTheme();
+                              setState(() {});
+                            },
+                            isLast: true,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: KazumiSpacing.md),
+                      SettingsSectionCard(
+                        title: '深色模式增强',
+                        icon: Icons.dark_mode_rounded,
+                        tiles: [
+                          SettingsSwitchTile(
+                            leading: const Icon(Icons.phone_android_rounded),
+                            title: 'OLED 优化',
+                            subtitle: '深色模式下使用纯黑背景',
+                            value: oledEnhance,
+                            onChanged: (value) async {
+                              oledEnhance = value;
+                              await setting.put(
+                                SettingBoxKey.oledEnhance,
+                                oledEnhance,
+                              );
+                              updateOledEnhance();
+                              setState(() {});
+                            },
+                            isLast: !Utils.isDesktop() && !Platform.isAndroid,
+                          ),
+                          if (Utils.isDesktop())
+                            SettingsSwitchTile(
+                              leading: const Icon(Icons.window_rounded),
+                              title: '使用系统标题栏',
+                              subtitle: '重启应用生效',
+                              value: showWindowButton,
+                              onChanged: (value) async {
+                                showWindowButton = value;
+                                await setting.put(
+                                  SettingBoxKey.showWindowButton,
+                                  showWindowButton,
+                                );
+                                setState(() {});
+                              },
+                              isLast: !Platform.isAndroid,
+                            ),
+                          if (Platform.isAndroid)
+                            SettingsNavTile(
+                              leading: const Icon(
+                                Icons.screenshot_monitor_rounded,
+                              ),
+                              title: '屏幕帧率',
+                              onTap: () => Modular.to.pushNamed(
+                                '/settings/theme/display',
+                              ),
+                              isLast: true,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          children: [
-            SettingsSectionCard(
-              title: '外观',
-              icon: Icons.palette_rounded,
-              tiles: [
-                SettingsNavTile(
-                  leading: const Icon(Icons.brightness_6_rounded),
-                  title: '深色模式',
-                  subtitle: defaultThemeMode == 'light'
-                      ? '浅色'
-                      : (defaultThemeMode == 'dark' ? '深色' : '跟随系统'),
-                  trailing: _themeModeSelector(),
-                  onTap: () {
-                    menuController.isOpen
-                        ? menuController.close()
-                        : menuController.open();
-                  },
-                ),
-                SettingsNavTile(
-                  leading: const Icon(Icons.color_lens_rounded),
-                  title: '配色方案',
-                  onTap: () => _showColorPicker(),
-                ),
-                SettingsSwitchTile(
-                  leading: const Icon(Icons.auto_awesome_rounded),
-                  title: '动态配色',
-                  subtitle: '仅支持安卓12及以上和桌面平台',
-                  value: useDynamicColor,
-                  onChanged: (value) async {
-                    if (Platform.isIOS) return;
-                    useDynamicColor = value;
-                    await setting.put(
-                        SettingBoxKey.useDynamicColor, useDynamicColor);
-                    themeProvider.setDynamic(useDynamicColor);
-                    setState(() {});
-                  },
-                ),
-                SettingsSwitchTile(
-                  leading: const Icon(Icons.font_download_rounded),
-                  title: '使用系统字体',
-                  subtitle: '关闭后使用 MI Sans 字体',
-                  value: useSystemFont,
-                  onChanged: (value) async {
-                    useSystemFont = value;
-                    await setting.put(
-                        SettingBoxKey.useSystemFont, useSystemFont);
-                    themeProvider.setFontFamily(useSystemFont);
-                    _applyStoredTheme();
-                    setState(() {});
-                  },
-                  isLast: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: KazumiSpacing.md),
-            SettingsSectionCard(
-              title: '深色模式增强',
-              icon: Icons.dark_mode_rounded,
-              tiles: [
-                SettingsSwitchTile(
-                  leading: const Icon(Icons.phone_android_rounded),
-                  title: 'OLED优化',
-                  subtitle: '深色模式下使用纯黑背景',
-                  value: oledEnhance,
-                  onChanged: (value) async {
-                    oledEnhance = value;
-                    await setting.put(SettingBoxKey.oledEnhance, oledEnhance);
-                    updateOledEnhance();
-                    setState(() {});
-                  },
-                  isLast: !Utils.isDesktop() && !Platform.isAndroid,
-                ),
-                if (Utils.isDesktop())
-                  SettingsSwitchTile(
-                    leading: const Icon(Icons.window_rounded),
-                    title: '使用系统标题栏',
-                    subtitle: '重启应用生效',
-                    value: showWindowButton,
-                    onChanged: (value) async {
-                      showWindowButton = value;
-                      await setting.put(
-                          SettingBoxKey.showWindowButton, showWindowButton);
-                      setState(() {});
-                    },
-                    isLast: !Platform.isAndroid,
-                  ),
-                if (Platform.isAndroid)
-                  SettingsNavTile(
-                    leading: const Icon(Icons.screenshot_monitor_rounded),
-                    title: '屏幕帧率',
-                    onTap: () =>
-                        Modular.to.pushNamed('/settings/theme/display'),
-                    isLast: true,
-                  ),
-              ],
-            ),
-          ],
         ),
       ),
     );
@@ -332,7 +365,6 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                 spacing: 8,
                 runSpacing: Utils.isDesktop() ? 8 : 0,
                 children: colorThemeTypes.map((theme) {
-                  final index = colorThemeTypes.indexOf(theme);
                   return GestureDetector(
                     onTap: () {
                       setThemePreset(theme);
@@ -356,6 +388,66 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ThemeSettingsHeader extends StatelessWidget {
+  const _ThemeSettingsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: dtb.DragToMoveArea(
+        child: KazumiGlassSurface(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.palette_rounded,
+                  color: scheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '外观设置',
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '切换主题、配色、字体和窗口外观。',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
