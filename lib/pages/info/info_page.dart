@@ -25,6 +25,8 @@ import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 
+const double _detailSegmentedTabBarHeight = 64;
+
 class InfoPage extends StatefulWidget {
   const InfoPage({super.key});
 
@@ -467,18 +469,18 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                     centerTitle: false,
                     expandedHeight: (Platform.isMacOS && showWindowButton)
                         ? _detailHeaderHeight(context) +
-                            kTextTabBarHeight +
+                            _detailSegmentedTabBarHeight +
                             kToolbarHeight +
                             22
                         : _detailHeaderHeight(context) +
-                            kTextTabBarHeight +
+                            _detailSegmentedTabBarHeight +
                             kToolbarHeight,
                     collapsedHeight: (Platform.isMacOS && showWindowButton)
-                        ? kTextTabBarHeight +
+                        ? _detailSegmentedTabBarHeight +
                             kToolbarHeight +
                             MediaQuery.paddingOf(context).top +
                             22
-                        : kTextTabBarHeight +
+                        : _detailSegmentedTabBarHeight +
                             kToolbarHeight +
                             MediaQuery.paddingOf(context).top,
                     flexibleSpace: FlexibleSpaceBar(
@@ -491,7 +493,7 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                             // No background image when loading to make loading looks better
                             if (!showBangumiInfoSkeleton)
                               Positioned.fill(
-                                bottom: kTextTabBarHeight,
+                                bottom: _detailSegmentedTabBarHeight,
                                 child: IgnorePointer(
                                   child: _InfoHeaderBackground(
                                     imageUrl: infoController
@@ -522,12 +524,14 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                       }),
                     ),
                     forceElevated: innerBoxIsScrolled,
-                    bottom: TabBar(
-                      controller: infoTabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.center,
-                      dividerHeight: 0,
-                      tabs: tabs.map((name) => Tab(text: name)).toList(),
+                    bottom: PreferredSize(
+                      preferredSize: const Size.fromHeight(
+                        _detailSegmentedTabBarHeight,
+                      ),
+                      child: _DetailSegmentedTabBar(
+                        controller: infoTabController,
+                        tabs: tabs,
+                      ),
                     ),
                   ),
                 ),
@@ -567,6 +571,59 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
             onPressed: () async {
               _showSourceSheet(context);
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailSegmentedTabBar extends StatelessWidget {
+  const _DetailSegmentedTabBar({
+    required this.controller,
+    required this.tabs,
+  });
+
+  final TabController controller;
+  final List<String> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: _detailSegmentedTabBarHeight,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh.withValues(alpha: 0.76),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.42),
+              ),
+            ),
+            child: TabBar(
+              controller: controller,
+              dividerHeight: 0,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.86),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.22),
+                ),
+              ),
+              labelColor: scheme.onPrimaryContainer,
+              unselectedLabelColor: scheme.onSurfaceVariant,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w900),
+              unselectedLabelStyle:
+                  const TextStyle(fontWeight: FontWeight.w700),
+              tabs: tabs.map((name) => Tab(text: name)).toList(),
+            ),
           ),
         ),
       ),

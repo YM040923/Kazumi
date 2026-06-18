@@ -39,4 +39,17 @@ void main() {
     expect(infoCardSource, contains('排名'));
     expect(infoCardSource, isNot(contains('letterSpacing: -0.5')));
   });
+
+  test('detail tabs use a compact segmented bar instead of a full-width rail',
+      () {
+    final infoPageSource =
+        File('lib/pages/info/info_page.dart').readAsStringSync();
+
+    expect(infoPageSource, contains('class _DetailSegmentedTabBar'));
+    expect(infoPageSource, contains('PreferredSize('));
+    expect(infoPageSource, contains('maxWidth: 360'));
+    expect(infoPageSource, contains('indicatorSize: TabBarIndicatorSize.tab'));
+    expect(
+        infoPageSource, isNot(contains('tabAlignment: TabAlignment.center')));
+  });
 }

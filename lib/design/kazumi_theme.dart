@@ -461,7 +461,6 @@ class KazumiTheme {
         fontWeight: FontWeight.w400,
         fontSize: 14,
       ),
-      tabAlignment: TabAlignment.start,
     );
   }
 

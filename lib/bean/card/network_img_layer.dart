@@ -58,72 +58,102 @@ class NetworkImgLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = src ?? '';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final resolvedWidth = _resolveImageExtent(width, constraints.maxWidth);
+        final resolvedHeight =
+            _resolveImageExtent(height, constraints.maxHeight);
+        final String imageUrl = src ?? '';
 
-    //// We need this to shink memory usage
-    int? memCacheWidth, memCacheHeight;
-    double aspectRatio = (width / height).toDouble();
+        //// We need this to shink memory usage
+        int? memCacheWidth, memCacheHeight;
+        double aspectRatio = (resolvedWidth / resolvedHeight).toDouble();
 
-    void setMemCacheSizes() {
-      if (aspectRatio > 1) {
-        memCacheHeight = height.cacheSize(context);
-      } else if (aspectRatio < 1) {
-        memCacheWidth = width.cacheSize(context);
-      } else {
-        if (origAspectRatio != null && origAspectRatio! > 1) {
-          memCacheWidth = width.cacheSize(context);
-        } else if (origAspectRatio != null && origAspectRatio! < 1) {
-          memCacheHeight = height.cacheSize(context);
-        } else {
-          memCacheWidth = width.cacheSize(context);
-          memCacheHeight = height.cacheSize(context);
+        void setMemCacheSizes() {
+          if (aspectRatio > 1) {
+            memCacheHeight = resolvedHeight.cacheSize(context);
+          } else if (aspectRatio < 1) {
+            memCacheWidth = resolvedWidth.cacheSize(context);
+          } else {
+            if (origAspectRatio != null && origAspectRatio! > 1) {
+              memCacheWidth = resolvedWidth.cacheSize(context);
+            } else if (origAspectRatio != null && origAspectRatio! < 1) {
+              memCacheHeight = resolvedHeight.cacheSize(context);
+            } else {
+              memCacheWidth = resolvedWidth.cacheSize(context);
+              memCacheHeight = resolvedHeight.cacheSize(context);
+            }
+          }
         }
-      }
-    }
 
-    setMemCacheSizes();
+        setMemCacheSizes();
 
-    if (memCacheWidth == null && memCacheHeight == null) {
-      memCacheWidth = width.toInt();
-    }
+        if (memCacheWidth == null && memCacheHeight == null) {
+          memCacheWidth = resolvedWidth.toInt();
+        }
 
-    return src != '' && src != null
-        ? ClipRRect(
-            clipBehavior: Clip.antiAlias,
-            borderRadius: BorderRadius.circular(
-              type == 'avatar'
-                  ? 50
-                  : type == 'emote'
-                      ? 0
-                      : StyleString.imgRadius.x,
-            ),
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              width: width,
-              height: height,
-              memCacheWidth: memCacheWidth,
-              memCacheHeight: memCacheHeight,
-              fit: BoxFit.cover,
-              fadeOutDuration:
-                  fadeOutDuration ?? const Duration(milliseconds: 120),
-              fadeInDuration:
-                  fadeInDuration ?? const Duration(milliseconds: 120),
-              filterQuality: filterQuality,
-              color: color,
-              colorBlendMode: colorBlendMode,
-              errorListener: (e) {
-                KazumiLogger()
-                    .w("NetworkImage: network image load error", error: e);
-              },
-              errorWidget: (BuildContext context, String url, Object error) =>
-                  placeholder(context),
-              placeholder: (BuildContext context, String url) =>
-                  placeholder(context),
-            ))
-        : placeholder(context);
+        return imageUrl.isNotEmpty
+            ? ClipRRect(
+                clipBehavior: Clip.antiAlias,
+                borderRadius: BorderRadius.circular(
+                  type == 'avatar'
+                      ? 50
+                      : type == 'emote'
+                          ? 0
+                          : StyleString.imgRadius.x,
+                ),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  width: resolvedWidth,
+                  height: resolvedHeight,
+                  memCacheWidth: memCacheWidth,
+                  memCacheHeight: memCacheHeight,
+                  fit: BoxFit.cover,
+                  fadeOutDuration:
+                      fadeOutDuration ?? const Duration(milliseconds: 120),
+                  fadeInDuration:
+                      fadeInDuration ?? const Duration(milliseconds: 120),
+                  filterQuality: filterQuality,
+                  color: color,
+                  colorBlendMode: colorBlendMode,
+                  errorListener: (e) {
+                    KazumiLogger()
+                        .w("NetworkImage: network image load error", error: e);
+                  },
+                  errorWidget:
+                      (BuildContext context, String url, Object error) =>
+                          placeholder(
+                    context,
+                    width: resolvedWidth,
+                    height: resolvedHeight,
+                  ),
+                  placeholder: (BuildContext context, String url) =>
+                      placeholder(
+                    context,
+                    width: resolvedWidth,
+                    height: resolvedHeight,
+                  ),
+                ))
+            : placeholder(
+                context,
+                width: resolvedWidth,
+                height: resolvedHeight,
+              );
+      },
+    );
   }
 
-  Widget placeholder(BuildContext context) {
+  double _resolveImageExtent(double requested, double constraint) {
+    if (requested.isFinite && requested > 0) return requested;
+    if (constraint.isFinite && constraint > 0) return constraint;
+    return 1;
+  }
+
+  Widget placeholder(
+    BuildContext context, {
+    required double width,
+    required double height,
+  }) {
     return Container(
       width: width,
       height: height,

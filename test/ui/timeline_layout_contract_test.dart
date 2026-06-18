@@ -30,4 +30,14 @@ void main() {
     expect(cardSource, isNot(contains('buildInfo(')));
     expect(cardSource, isNot(contains('supportingText')));
   });
+
+  test('global tab theme does not force start alignment on fixed tabs', () {
+    final themeSource = File('lib/design/kazumi_theme.dart').readAsStringSync();
+    final tabThemeSource = themeSource.substring(
+      themeSource.indexOf('static TabBarThemeData _tabBarTheme'),
+      themeSource.indexOf('static DialogThemeData _dialogTheme'),
+    );
+
+    expect(tabThemeSource, isNot(contains('TabAlignment.start')));
+  });
 }
