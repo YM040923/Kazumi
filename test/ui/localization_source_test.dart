@@ -151,7 +151,8 @@ void main() {
     expect(
         appWidgetSource, contains('child: child ?? const SizedBox.shrink()'));
 
-    expect(sysAppBarSource, contains('WindowControlInset'));
+    expect(sysAppBarSource, contains('DesktopWindowActionRail'));
+    expect(windowControlsHostSource, contains('class WindowControlInset'));
     expect(sysAppBarSource, isNot(contains('windowManager.close()')));
 
     expect(popularSource, contains('Icons.search_rounded'));
@@ -171,14 +172,17 @@ void main() {
       infoSource,
       searchSource,
       settingsSource,
-      displayModeSource,
-      storageErrorSource,
-      danmakuShieldSheetSource,
-      indexModuleSource,
     ]) {
-      expect(
-          source, anyOf(contains('WindowControlInset'), contains('SysAppBar')));
+      expect(source, contains('WindowControlInset'));
     }
+    expect(displayModeSource, contains('KazumiSettingsPageShell'));
+    expect(storageErrorSource, contains('KazumiDesktopPageFrame'));
+    expect(storageErrorSource, contains('_StorageErrorHeader'));
+    expect(storageErrorSource, isNot(contains('GStorage')));
+    expect(danmakuShieldSheetSource, contains('DanmakuShieldSettingsContent'));
+    expect(danmakuShieldSheetSource, isNot(contains('SysAppBar')));
+    expect(indexModuleSource, isNot(contains('SysAppBar')));
+    expect(indexModuleSource, isNot(contains('appBar:')));
     final overlayControlsSource = windowControlsSource.substring(
       windowControlsSource.indexOf('class _OverlayWindowControls'),
       windowControlsSource.indexOf('class _CenteredMinimizeIcon'),
@@ -214,6 +218,7 @@ void main() {
       indexModuleSource,
     ]) {
       expect(source, isNot(contains('appBar: AppBar(')));
+      expect(source, isNot(contains('SysAppBar')));
     }
   });
 
@@ -221,8 +226,6 @@ void main() {
       () {
     final popularSource =
         File('lib/pages/popular/popular_page.dart').readAsStringSync();
-    final continueWatchingSource =
-        File('lib/bean/card/continue_watching_card.dart').readAsStringSync();
 
     final sliverSource = popularSource.substring(
       popularSource.indexOf('slivers: ['),
@@ -239,10 +242,15 @@ void main() {
     expect(popularSource, contains('onDelete: ()'));
     expect(popularSource, contains('historyController.deleteHistory(history)'));
 
-    expect(continueWatchingSource, contains('required this.onDelete'));
-    expect(continueWatchingSource, contains('onSecondaryTapDown'));
-    expect(continueWatchingSource, contains('showMenu'));
-    expect(continueWatchingSource, contains('PopupMenuItem'));
+    expect(popularSource, contains('class _ContinueWatchingTile'));
+    expect(popularSource, contains('required this.onDelete'));
+    expect(popularSource, contains('onPointerDown'));
+    expect(popularSource, contains('kSecondaryMouseButton'));
+    expect(popularSource, contains('onSecondaryTap'));
+    expect(popularSource, contains('onLongPressStart'));
+    expect(popularSource, contains('showMenu<void>'));
+    expect(popularSource, contains('PopupMenuItem<void>'));
+    expect(popularSource, contains("Text('删除记录')"));
   });
 
   test('settings home is a responsive media preferences center', () {
@@ -268,6 +276,7 @@ void main() {
     }
 
     expect(source, isNot(contains('SysAppBar(title: Text')));
+    expect(source, isNot(contains('appBar:')));
     expect(source, isNot(contains('MediaQuery.sizeOf(context).width;')));
   });
 
@@ -434,14 +443,13 @@ void main() {
       (escaped: r'\u8bf7\u8f93\u5165\u9a8c\u8bc1\u7801', text: '请输入验证码'),
       (escaped: r'\u9a8c\u8bc1\u6210\u529f', text: '验证成功'),
       (escaped: r'\u6b63\u5728\u91cd\u65b0\u68c0\u7d22', text: '正在重新检索'),
-      (escaped: r'\u9009\u62e9\u64ad\u653e\u6e90', text: '选择播放源'),
+      (escaped: r'\u81ea\u52a8\u9a8c\u8bc1\u4e2d', text: '自动验证中'),
+      (escaped: r'\u9700\u8981\u9a8c\u8bc1\u7801\u9a8c\u8bc1', text: '需要验证码验证'),
       (escaped: r'\u7ed3\u679c\u4e0d\u51c6\u786e\uff1f', text: '结果不准确？'),
       (escaped: r'\u522b\u540d\u68c0\u7d22', text: '别名检索'),
       (escaped: r'\u624b\u52a8\u68c0\u7d22', text: '手动检索'),
-      (
-        escaped: r'\u6682\u65e0\u53ef\u7528\u89c6\u9891\u6765\u6e90',
-        text: '暂无可用视频来源'
-      ),
+      (escaped: r'\u89c6\u9891\u6765\u6e90', text: '视频来源'),
+      (escaped: r'\u83b7\u53d6\u4e2d', text: '获取中'),
     ]) {
       expect(source, anyOf(contains(marker.escaped), contains(marker.text)));
     }
@@ -553,89 +561,95 @@ void main() {
     }
   });
 
-  test('detail page keeps screenshot-style five-tab media information layout',
+  test('plugin and utility pages use the unified glass shell', () {
+    final pagePaths = [
+      'lib/pages/plugin_editor/plugin_editor_page.dart',
+      'lib/pages/plugin_editor/plugin_shop_page.dart',
+      'lib/pages/plugin_editor/plugin_view_page.dart',
+      'lib/pages/plugin_editor/plugin_test_page.dart',
+      'lib/pages/about/about_page.dart',
+      'lib/pages/logs/logs_page.dart',
+      'lib/pages/settings/danmaku/danmaku_shield_settings.dart',
+    ];
+
+    for (final path in pagePaths) {
+      final source = File(path).readAsStringSync();
+      expect(source, contains('KazumiSettingsPageShell('), reason: path);
+      expect(
+        source,
+        anyOf(contains('SettingsSectionCard'), contains('KazumiGlassSurface')),
+        reason: path,
+      );
+      expect(source, isNot(contains('SysAppBar')), reason: path);
+      expect(source, isNot(contains('appBar:')), reason: path);
+    }
+
+    final sheetSource =
+        File('lib/pages/settings/danmaku/danmaku_shield_settings_sheet.dart')
+            .readAsStringSync();
+    expect(sheetSource, contains('DanmakuShieldSettingsContent'));
+    expect(sheetSource, isNot(contains('SysAppBar')));
+    expect(sheetSource, isNot(contains('appBar:')));
+  });
+
+  test('detail page keeps editorial episode-first media information layout',
       () {
     final source = File('lib/pages/info/info_page.dart').readAsStringSync();
-    final moduleSource =
-        File('lib/pages/info/info_module.dart').readAsStringSync();
     final tabViewSource =
         File('lib/pages/info/info_tabview.dart').readAsStringSync();
     final videoControllerSource =
         File('lib/pages/video/video_controller.dart').readAsStringSync();
     final videoPageSource =
         File('lib/pages/video/video_page.dart').readAsStringSync();
-    final fixtureSource =
-        File('lib/utils/ui_verification_fixtures.dart').readAsStringSync();
 
     for (final marker in [
-      '_MediaDetailHeader',
-      '_InfoFallbackBackdrop',
-      '_DetailPosterArt',
-      '_DetailHeaderActions',
-      '_DetailMetaPill',
-      '_DetailWatchPanel',
-      '_DetailThemeWash',
-      '_bestInfoImageUrl',
+      '_InfoHeaderBackground',
+      'BangumiInfoCardV',
+      '_DetailSegmentedTabBar',
+      "bangumiItem.images['large']",
       '_leaveInfoPage',
-      'quality: 140',
       "Modular.to.navigate('/tab/popular/')",
       'Bangumi',
-      'initialBangumiItem',
-      'TabController(length: 5',
+      'Modular.args.data as BangumiItem',
+      'TabController(length: 3',
       'historyController.init()',
       'loadEpisodes',
       '_openEpisodeSourceSearch',
       '_latestPlayableHistoryForBangumi',
       'requestEpisodeSelection',
-      'commentsIsLoading',
-      'loadMoreComments',
-      r'\u6982\u89c8',
-      r'\u5410\u69fd',
-      r'\u9009\u96c6',
-      r'\u89d2\u8272',
-      r'\u5236\u4f5c\u4eba\u5458',
+      '选集',
+      '角色',
+      '制作人员',
+      '_SourceFloatingAction',
+      'KazumiGlassSurface',
     ]) {
       expect(source, contains(marker));
     }
     expect(source, isNot(contains(r'\u8bc4\u8bba')));
+    expect(source, isNot(contains(r'\u6982\u89c8')));
+    expect(source, isNot(contains(r'\u5410\u69fd')));
+    expect(source, isNot(contains('FloatingActionButton')));
 
     for (final marker in [
-      'overviewBody',
-      'commentsListBody',
       'episodeListBody',
       '_EpisodeRoadSelector',
       '_EpisodeTile',
       'charactersListBody',
       'staffListBody',
-      'CommentsCard',
-      '_InfoListRow',
-      '_InfoListSkeleton',
-      '_OverviewSection',
-      '_InfoKeyValue',
-      '_TagChip',
-      '简介',
-      '基本信息',
-      '标签',
-      '概览',
-      '吐槽',
       '选集',
-      '角色',
-      '制作人员',
     ]) {
       expect(tabViewSource, contains(marker));
     }
+    expect(tabViewSource, isNot(contains('overviewBody')));
+    expect(tabViewSource, isNot(contains('commentsListBody')));
+    expect(tabViewSource, isNot(contains('CommentsCard')));
     expect(tabViewSource, isNot(contains('reviewPlaceholderBody')));
     expect(tabViewSource, isNot(contains('评论区暂不可用')));
     expect(videoControllerSource, contains('pendingEpisodeSelection'));
     expect(videoControllerSource, contains('requestEpisodeSelection'));
     expect(videoPageSource, contains('applyPendingEpisodeSelectionIfValid'));
 
-    expect(source, isNot(contains('dtb.DragToMoveArea')));
-    expect(source, isNot(contains('SliverAppBar.medium')));
-
-    expect(moduleSource, contains('/ui-verification'));
-    expect(moduleSource, contains('makeUiVerificationBangumiItems().first'));
-    expect(fixtureSource, contains('id: 400602'));
-    expect(fixtureSource, contains('400602_ZI8Y9.jpg'));
+    expect(source, contains('dtb.DragToMoveArea'));
+    expect(source, contains('SliverAppBar.medium'));
   });
 }

@@ -22,7 +22,6 @@ import 'package:kazumi/repositories/history_repository.dart';
 import 'package:kazumi/repositories/download_repository.dart';
 import 'package:kazumi/utils/download_manager.dart';
 import 'package:kazumi/pages/download/download_controller.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/image_preview.dart';
 
 class IndexModule extends Module {
@@ -59,7 +58,6 @@ class IndexModule extends Module {
           ChildRoute(
             "/error",
             child: (_) => Scaffold(
-              appBar: const SysAppBar(title: Text("Kazumi")),
               body: const Center(child: Text("初始化失败")),
             ),
           ),
