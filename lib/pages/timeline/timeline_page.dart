@@ -4,6 +4,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/pages/menu/menu.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/pages/timeline/timeline_controller.dart';
+import 'package:kazumi/pages/timeline/timeline_layout.dart';
 import 'package:kazumi/bean/card/bangumi_timeline_card.dart';
 import 'package:kazumi/design/desktop_layout.dart';
 import 'package:kazumi/utils/utils.dart';
@@ -897,21 +898,6 @@ class _TimelinePageState extends State<TimelinePage>
 
   List<Widget> contentGrid(List<List<BangumiItem>> bangumiCalendar) {
     List<Widget> gridViewList = [];
-    final width = MediaQuery.sizeOf(context).width;
-    int crossCount = 2;
-    if (width >= 560) {
-      crossCount = 3;
-    }
-    if (width >= 840) {
-      crossCount = 4;
-    }
-    if (width >= 1120) {
-      crossCount = 5;
-    }
-    if (width >= 1440) {
-      crossCount = 6;
-    }
-    final cardHeight = Utils.isDesktop() ? 286.0 : (Utils.isTablet() ? 252.0 : 218.0);
     for (var bangumiList in bangumiCalendar) {
       // 根据过滤器设置过滤番剧
       var filteredList = bangumiList;
@@ -943,29 +929,55 @@ class _TimelinePageState extends State<TimelinePage>
           maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
           child: CustomScrollView(
             slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(0, 24, 0, 36),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    mainAxisSpacing: 18,
-                    crossAxisSpacing: 16,
-                    crossAxisCount: crossCount,
-                    mainAxisExtent: cardHeight,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (BuildContext context, int index) {
-                      if (filteredList.isEmpty) return null;
-                      final item = filteredList[index];
-                      return BangumiTimelineCard(
-                        bangumiItem: item,
-                        cardHeight: cardHeight,
-                        showRating: showRating,
-                      );
-                    },
-                    childCount: filteredList.isNotEmpty ? filteredList.length : 10,
+              SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final contentWidth = constraints.crossAxisExtent;
+                  final crossCount =
+                      timelinePosterGridColumnCount(contentWidth);
+                  final gap = timelinePosterGridGap(contentWidth);
+                  final textHeight = timelinePosterTextHeight(contentWidth);
+                  final availableWidth = contentWidth - gap * (crossCount - 1);
+                  final posterWidth = availableWidth / crossCount;
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(0, 24, 0, 36),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        mainAxisSpacing: gap,
+                        crossAxisSpacing: gap,
+                        crossAxisCount: crossCount,
+                        mainAxisExtent: posterWidth / 0.68 + textHeight,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (BuildContext context, int index) {
+                          if (filteredList.isEmpty) return null;
+                          final item = filteredList[index];
+                          return BangumiTimelineCard(
+                            bangumiItem: item,
+                            showRating: showRating,
+                          );
+                        },
+                        childCount:
+                            filteredList.isNotEmpty ? filteredList.length : 10,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (filteredList.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      '这一天没有可显示的作品',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -996,7 +1008,8 @@ class _TimelineHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return GestureDetector(
-      onPanStart: (_) => Utils.isDesktop() ? windowManager.startDragging() : null,
+      onPanStart: (_) =>
+          Utils.isDesktop() ? windowManager.startDragging() : null,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: scheme.surface,
