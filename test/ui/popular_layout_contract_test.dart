@@ -24,11 +24,65 @@ void main() {
 
     final sliverSource = source.substring(
       source.indexOf('slivers: ['),
-      source.indexOf('Widget _buildAppBar'),
+      source.indexOf('Widget _buildRemoteError'),
     );
     expect(
       sliverSource.indexOf('_buildContinueWatchingStrip'),
       lessThan(sliverSource.indexOf('_buildGrid')),
     );
+  });
+
+  test('discover page uses Chinese media shelf copy and spotlight header', () {
+    final source =
+        File('lib/pages/popular/popular_page.dart').readAsStringSync();
+    final menuSource = File('lib/pages/menu/menu.dart').readAsStringSync();
+
+    for (final marker in [
+      '_buildSpotlightBoard',
+      '_SpotlightCopy',
+      '_SpotlightThumbnailRail',
+      '_TrendCategoryBar',
+      '_MediaFilterHeader',
+      'popularGridItemsExcludingSpotlight',
+    ]) {
+      expect(source, contains(marker));
+    }
+
+    for (final copy in [
+      '发现',
+      '精选推荐',
+      '继续观看',
+      '热门作品',
+      '评分',
+      '重试',
+      '删除记录',
+    ]) {
+      expect(source, contains(copy));
+    }
+
+    for (final navCopy in ['发现', '时间表', '追番', '设置']) {
+      expect(menuSource, contains(navCopy));
+    }
+
+    for (final englishCopy in [
+      "'Discover'",
+      "'For You'",
+      "'Popular'",
+      "'Continue Watching'",
+      "'Nothing found'",
+      "'Retry'",
+      "'Score ",
+      'label: Text(\'Discover\')',
+      "label: 'Discover'",
+      "label: 'Schedule'",
+      "label: 'Favorites'",
+      "label: 'Settings'",
+    ]) {
+      expect(source + menuSource, isNot(contains(englishCopy)));
+    }
+
+    expect(source, isNot(contains('_buildFeaturedRow')));
+    expect(source, isNot(contains('CustomDropdownMenu')));
+    expect(source, isNot(contains('showTagMenu')));
   });
 }

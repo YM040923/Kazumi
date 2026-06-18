@@ -1,22 +1,32 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
+import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
+import 'package:kazumi/bean/card/bangumi_card.dart';
 import 'package:kazumi/bean/card/bangumi_history_card.dart';
+import 'package:kazumi/bean/card/network_img_layer.dart';
+import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/widget/error_widget.dart';
-import 'package:kazumi/bean/widget/custom_dropdown_menu.dart';
+import 'package:kazumi/design/desktop_layout.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 import 'package:kazumi/pages/history/history_controller.dart';
-import 'package:kazumi/pages/popular/popular_layout.dart';
 import 'package:kazumi/pages/popular/popular_controller.dart';
-import 'package:kazumi/bean/card/bangumi_card.dart';
-import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/pages/popular/popular_layout.dart';
 import 'package:kazumi/utils/constants.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
-import 'package:kazumi/pages/menu/menu.dart';
-import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+
+const double _spotlightThumbnailGap = 10;
+const double _spotlightThumbnailPreferredWidth = 152;
+const double _spotlightThumbnailMinimumWidth = 104;
+const double _spotlightThumbnailRailHeight = 76;
 
 class PopularPage extends StatefulWidget {
   const PopularPage({super.key});
@@ -28,15 +38,16 @@ class PopularPage extends StatefulWidget {
 class _PopularPageState extends State<PopularPage>
     with AutomaticKeepAliveClientMixin {
   DateTime? _lastPressedAt;
-  late NavigationBarState navigationBarState;
-  final FocusNode _focusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
   final PopularController popularController = Modular.get<PopularController>();
   final HistoryController historyController = Modular.get<HistoryController>();
-  final PageController _featuredController =
-      PageController(viewportFraction: 0.85);
-  int _featuredPage = 0;
-  final GlobalKey selectorKey = GlobalKey();
+  static const int _spotlightWindowSize = 6;
+  static const Duration _spotlightAutoPlayInterval = Duration(seconds: 6);
+
+  int _selectedSpotlightIndex = 0;
+  int _spotlightPageStart = 0;
+  bool _refreshing = false;
+  Timer? _spotlightAutoPlayTimer;
 
   @override
   bool get wantKeepAlive => true;
@@ -45,21 +56,18 @@ class _PopularPageState extends State<PopularPage>
   void initState() {
     super.initState();
     scrollController.addListener(scrollListener);
-    _featuredController.addListener(() {
-      if (mounted)
-        setState(() => _featuredPage = _featuredController.page?.round() ?? 0);
-    });
     if (popularController.trendList.isEmpty) {
       popularController.queryBangumiByTrend();
     }
     historyController.init();
+    _startSpotlightAutoPlay();
   }
 
   @override
   void dispose() {
-    _focusNode.dispose();
     scrollController.removeListener(scrollListener);
-    _featuredController.dispose();
+    scrollController.dispose();
+    _spotlightAutoPlayTimer?.cancel();
     super.dispose();
   }
 
@@ -68,12 +76,129 @@ class _PopularPageState extends State<PopularPage>
     if (scrollController.position.pixels >=
             scrollController.position.maxScrollExtent - 200 &&
         !popularController.isLoadingMore) {
-      if (popularController.currentTag != '') {
-        popularController.queryBangumiByTag();
-      } else {
+      if (popularController.currentTag.isEmpty) {
         popularController.queryBangumiByTrend();
+      } else {
+        popularController.queryBangumiByTag();
       }
     }
+  }
+
+  List<BangumiItem> _currentList() {
+    return popularController.currentTag.isEmpty
+        ? popularController.trendList.toList()
+        : popularController.bangumiList.toList();
+  }
+
+  List<History> _recentHistories() {
+    final histories = historyController.histories.toList();
+    histories.sort((a, b) => b.lastWatchTime.compareTo(a.lastWatchTime));
+    return histories.take(10).toList();
+  }
+
+  Future<void> _retryCurrentView() => _refreshCurrentView();
+
+  Future<void> _refreshCurrentView() async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    try {
+      final changed = _advanceSpotlightWindow();
+      if (!changed) {
+        if (popularController.currentTag.isEmpty) {
+          await popularController.queryBangumiByTrend(type: 'init');
+        } else {
+          await popularController.queryBangumiByTag(type: 'init');
+        }
+        _advanceSpotlightWindow();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _refreshing = false);
+      }
+    }
+  }
+
+  Future<void> _selectCategory(String tag) async {
+    if (popularController.currentTag == tag) return;
+
+    setState(() {
+      _selectedSpotlightIndex = 0;
+      _spotlightPageStart = 0;
+    });
+    popularController.setCurrentTag(tag);
+
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: KazumiDurations.normal,
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    if (tag.isEmpty) {
+      popularController.clearBangumiList();
+      await popularController.queryBangumiByTrend(type: 'init');
+    } else {
+      await popularController.queryBangumiByTag(type: 'init');
+    }
+    _restartSpotlightAutoPlay();
+  }
+
+  void _selectSpotlightItem(int index) {
+    setState(() => _selectedSpotlightIndex = index);
+    _restartSpotlightAutoPlay();
+  }
+
+  bool _advanceSpotlightWindow() {
+    final list = _currentList();
+    if (list.length <= _spotlightWindowSize) return false;
+
+    final nextStart = nextSpotlightPageStart(
+      currentStart: _spotlightPageStart,
+      itemCount: list.length,
+      windowSize: _spotlightWindowSize,
+    );
+    if (nextStart == _spotlightPageStart && _spotlightPageStart == 0) {
+      return false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _spotlightPageStart = nextStart;
+        _selectedSpotlightIndex = 0;
+      });
+    } else {
+      _spotlightPageStart = nextStart;
+      _selectedSpotlightIndex = 0;
+    }
+    _restartSpotlightAutoPlay();
+    return true;
+  }
+
+  void _startSpotlightAutoPlay() {
+    _spotlightAutoPlayTimer?.cancel();
+    _spotlightAutoPlayTimer = Timer.periodic(_spotlightAutoPlayInterval, (_) {
+      final items = spotlightWindowFor(
+        _currentList(),
+        start: _spotlightPageStart,
+        size: _spotlightWindowSize,
+      );
+      if (!mounted || items.length <= 1) return;
+      setState(() {
+        _selectedSpotlightIndex = nextSpotlightIndex(
+          currentIndex: _selectedSpotlightIndex,
+          itemCount: items.length,
+        );
+      });
+    });
+  }
+
+  void _restartSpotlightAutoPlay() {
+    _startSpotlightAutoPlay();
+  }
+
+  void _openDetails(BangumiItem item) {
+    Modular.to.pushNamed('/info/', arguments: item);
   }
 
   void onBackPressed(BuildContext context) {
@@ -102,77 +227,113 @@ class _PopularPageState extends State<PopularPage>
         onBackPressed(context);
       },
       child: Scaffold(
-        body: Observer(builder: (_) {
-          final list = popularController.currentTag == ''
-              ? popularController.trendList
-              : popularController.bangumiList;
-          if (popularController.isTimeOut && list.isEmpty) {
-            return Center(
-              child: GeneralErrorWidget(
-                errMsg: 'Nothing found',
-                actions: [
-                  GeneralErrorButton(
-                      onPressed: () => popularController.queryBangumiByTrend(),
-                      text: 'Retry')
-                ],
-              ),
-            );
-          }
-          return CustomScrollView(
-            controller: scrollController,
-            slivers: [
-              _buildAppBar(scheme),
-              if (list.isNotEmpty) ...[
-                _buildSectionHeader('For You', Icons.auto_awesome_rounded),
-                _buildFeaturedRow(scheme, list),
-              ],
-              _buildContinueWatchingStrip(),
-              if (list.isNotEmpty)
-                _buildSectionHeader(
-                    'Popular', Icons.local_fire_department_rounded),
-              _buildTagChips(scheme),
-              if (popularController.isLoadingMore && list.isEmpty)
-                const SliverToBoxAdapter(
-                    child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()))),
-              _buildGrid(list),
-              if (popularController.isLoadingMore)
-                const SliverToBoxAdapter(
-                    child: Padding(
-                        padding: EdgeInsets.all(16),
+        backgroundColor: Colors.transparent,
+        body: Observer(
+          builder: (_) {
+            final list = _currentList();
+            final showRemoteError = popularController.isTimeOut && list.isEmpty;
+            final loading = popularController.isLoadingMore || _refreshing;
+
+            return CustomScrollView(
+              controller: scrollController,
+              slivers: [
+                _buildMediaAppBar(scheme, loading),
+                if (showRemoteError)
+                  _buildRemoteError()
+                else ...[
+                  if (list.isEmpty)
+                    _buildLoadingSpotlight(scheme)
+                  else
+                    _buildSpotlightBoard(scheme, list, loading),
+                  SliverToBoxAdapter(child: _buildContinueWatchingStrip()),
+                  SliverToBoxAdapter(
+                    child: _TrendCategoryBar(
+                      title: popularController.currentTag.isEmpty
+                          ? '热门作品'
+                          : '${popularController.currentTag}作品',
+                      subtitle: popularController.currentTag.isEmpty
+                          ? '从 Bangumi 热门条目里挑选最近值得打开的内容。'
+                          : '正在浏览 ${popularController.currentTag} 分类下的作品。',
+                      count: list.length,
+                      loading: loading && list.isEmpty,
+                      child: _buildTagChips(scheme),
+                    ),
+                  ),
+                  if (list.isEmpty)
+                    _buildLoadingPosterGrid(scheme)
+                  else
+                    _buildGrid(
+                      popularGridItemsExcludingSpotlight(
+                        list,
+                        spotlightStart: _spotlightPageStart,
+                        spotlightSize: _spotlightWindowSize,
+                      ),
+                    ),
+                  if (popularController.isLoadingMore && list.isNotEmpty)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(18),
                         child: Center(
-                            child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))))),
-              const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-            ],
-          );
-        }),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+                const SliverPadding(padding: EdgeInsets.only(bottom: 96)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildAppBar(ColorScheme scheme) {
+  Widget _buildRemoteError() {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: GeneralErrorWidget(
+          errMsg: '没有找到内容，请检查网络后重试。',
+          actions: [
+            GeneralErrorButton(onPressed: _retryCurrentView, text: '重试'),
+            GeneralErrorButton(
+              onPressed: () => Modular.to.pushNamed('/settings/proxy'),
+              text: '代理设置',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaAppBar(ColorScheme scheme, bool loading) {
     return SliverAppBar(
       pinned: true,
       floating: false,
       elevation: 0,
+      toolbarHeight: 72,
       scrolledUnderElevation: KazumiElevations.subtle,
-      backgroundColor: scheme.surface,
+      backgroundColor: scheme.surface.withValues(alpha: 0.62),
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
       actions: [
         DesktopWindowActionRail(
           actions: [
             IconButton(
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => Modular.to.pushNamed('/search/')),
+              tooltip: '搜索',
+              icon: const Icon(Icons.search_rounded),
+              onPressed: () => Modular.to.pushNamed('/search/'),
+            ),
             IconButton(
-                icon: const Icon(Icons.history_rounded),
-                onPressed: () => Modular.to.pushNamed('/settings/history/')),
+              tooltip: '观看历史',
+              icon: const Icon(Icons.history_rounded),
+              onPressed: () => Modular.to.pushNamed('/settings/history/'),
+            ),
           ],
           trailingSpacing: 4,
         ),
@@ -180,356 +341,1166 @@ class _PopularPageState extends State<PopularPage>
       flexibleSpace: SafeArea(
         bottom: false,
         child: dtb.DragToMoveArea(
+          child: WindowControlInset(
             child: Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-          child: Align(
-              alignment: Alignment.centerLeft,
-              child: Observer(builder: (_) {
-                final isTrend = popularController.currentTag == '';
-                return InkWell(
-                    key: selectorKey,
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: showTagMenu,
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      ShaderMask(
-                          shaderCallback: (b) => LinearGradient(
-                                  colors: [scheme.primary, scheme.tertiary])
-                              .createShader(b),
-                          child: Text(
-                              isTrend
-                                  ? 'Discover'
-                                  : popularController.currentTag,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 22,
-                                  color: Colors.white,
-                                  letterSpacing: -0.5))),
-                      const SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 22, color: scheme.primary),
-                    ]));
-              })),
-        )),
+              padding: const EdgeInsets.only(left: 24, top: 10, bottom: 10),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '发现',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        height: 1.05,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '精选推荐、继续观看和热门作品',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon) {
-    return SliverToBoxAdapter(child: _buildSectionHeaderBox(title, icon));
-  }
-
-  Widget _buildSectionHeaderBox(String title, IconData icon) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-      child: Row(children: [
-        Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, size: 16, color: scheme.onPrimaryContainer)),
-        const SizedBox(width: 10),
-        Text(title,
-            style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
-                letterSpacing: 0)),
-      ]),
-    );
-  }
-
-  Widget _buildFeaturedRow(ColorScheme scheme, List list) {
+  Widget _buildSpotlightBoard(
+    ColorScheme scheme,
+    List<BangumiItem> list,
+    bool loading,
+  ) {
     return SliverToBoxAdapter(
-        child: SizedBox(
-            height: 280,
-            child: PageView.builder(
-              controller: _featuredController,
-              padEnds: true,
-              itemCount: (list.length / 3).ceil().clamp(1, 8),
-              itemBuilder: (context, pageIdx) {
-                final item = list.isNotEmpty && pageIdx * 3 < list.length
-                    ? list[pageIdx * 3]
-                    : null;
-                return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(fit: StackFit.expand, children: [
-                          if (item != null)
-                            Hero(
-                                tag: 'featured_${item.id}',
-                                child: Image.network(item.images['large'] ?? '',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                        color:
-                                            scheme.surfaceContainerHighest))),
-                          Positioned.fill(
-                              child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.8)
-                              ],
-                                          stops: const [
-                                0.4,
-                                1
-                              ])))),
-                          if (item != null)
-                            Positioned(
-                                left: 16,
-                                right: 16,
-                                bottom: 16,
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                          item.nameCn.isNotEmpty
-                                              ? item.nameCn
-                                              : item.name,
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w700),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis),
-                                      const SizedBox(height: 4),
-                                      Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                              color: scheme.primary
-                                                  .withValues(alpha: 0.85),
-                                              borderRadius:
-                                                  BorderRadius.circular(6)),
-                                          child: Text(
-                                              'Score ${item.ratingScore}',
-                                              style: TextStyle(
-                                                  color: scheme.onPrimary,
-                                                  fontSize: 12,
-                                                  fontWeight:
-                                                      FontWeight.w600))),
-                                    ])),
-                          Positioned.fill(
-                              child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(onTap: () {
-                                    if (item != null)
-                                      Modular.to
-                                          .pushNamed('/info/', arguments: item);
-                                  }))),
-                        ])));
-              },
-            )));
+      child: _DesktopContentFrame(
+        top: 18,
+        bottom: 8,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final metrics = _ContentWidthMetrics.from(constraints.maxWidth);
+            final isWide = metrics.contentWidth >= 860;
+            final height = isWide ? 326.0 : 492.0;
+            final spotlightItems = spotlightWindowFor(
+              list,
+              start: _spotlightPageStart,
+              size: _spotlightWindowSize,
+            );
+            final selectedIndex = math.min(
+              _selectedSpotlightIndex,
+              math.max(0, spotlightItems.length - 1),
+            );
+            final selectedItem = spotlightItems.isEmpty
+                ? list.first
+                : spotlightItems[selectedIndex];
+
+            return SizedBox(
+              width: metrics.contentWidth,
+              height: height,
+              child: _SpotlightSurface(
+                item: selectedItem,
+                items: spotlightItems,
+                selectedIndex: selectedIndex,
+                loading: loading,
+                isWide: isWide,
+                onOpenDetails: () => _openDetails(selectedItem),
+                onRefresh: _refreshCurrentView,
+                onSelect: _selectSpotlightItem,
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildContinueWatchingStrip() {
-    return Observer(builder: (context) {
-      final histories = historyController.histories.toList()
-        ..sort((a, b) => b.lastWatchTime.compareTo(a.lastWatchTime));
-      if (histories.isEmpty) {
-        return const SliverToBoxAdapter(child: SizedBox.shrink());
-      }
+    return Observer(
+      builder: (context) {
+        final histories = _recentHistories();
+        if (histories.isEmpty) return const SizedBox.shrink();
 
-      return SliverToBoxAdapter(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeaderBox(
-                'Continue Watching', Icons.play_circle_fill_rounded),
-            SizedBox(
-              height: 154,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: histories.length > 12 ? 12 : histories.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  final history = histories[index];
-                  return SizedBox(
-                    width: 320,
-                    child: _ContinueWatchingTile(
-                      history: history,
-                      onDelete: () {
-                        historyController.deleteHistory(history);
-                      },
-                    ),
-                  );
-                },
+        return _DesktopContentFrame(
+          top: 8,
+          bottom: 0,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SectionTitle(
+                icon: Icons.play_circle_outline_rounded,
+                title: '继续观看',
+                subtitle: '从上次中断的位置快速回到播放。',
               ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildTagChips(ColorScheme scheme) {
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 44,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          children: [
-            _tagChip(
-              'Popular',
-              popularController.currentTag == '',
-              scheme,
-              onTap: () {
-                if (popularController.currentTag != '') {
-                  popularController.setCurrentTag('');
-                  popularController.clearBangumiList();
-                  if (popularController.trendList.isEmpty) {
-                    popularController.queryBangumiByTrend();
-                  }
-                  scrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                  );
-                }
-              },
-            ),
-            ...defaultAnimeTags.map(
-              (tag) => _tagChip(
-                tag,
-                popularController.currentTag == tag,
-                scheme,
-                onTap: () {
-                  if (popularController.currentTag != tag) {
-                    popularController.setCurrentTag(tag);
-                    scrollController.animateTo(
-                      0,
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 132,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.zero,
+                  itemCount: histories.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final history = histories[index];
+                    return SizedBox(
+                      width: 292,
+                      child: _ContinueWatchingTile(
+                        history: history,
+                        onDelete: () {
+                          historyController.deleteHistory(history);
+                        },
+                      ),
                     );
-                    popularController.queryBangumiByTag(type: 'init');
-                  }
-                },
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tagChip(String label, bool selected, ColorScheme scheme,
-      {VoidCallback? onTap}) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGrid(List list) {
-    if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    return SliverLayoutBuilder(
-      builder: (context, constraints) {
-        final contentWidth = constraints.crossAxisExtent;
-        final crossCount = popularPosterGridColumnCount(contentWidth);
-        final gap = popularPosterGridGap(contentWidth);
-        final textHeight = popularPosterGridTextHeight(contentWidth);
-        final horizontalPadding = contentWidth >= 1440 ? 20.0 : 12.0;
-        final availableWidth = contentWidth - horizontalPadding * 2;
-        final posterWidth =
-            (availableWidth - gap * (crossCount - 1)) / crossCount;
-
-        return SliverPadding(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            8,
-            horizontalPadding,
-            24,
-          ),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              mainAxisSpacing: gap,
-              crossAxisSpacing: gap,
-              crossAxisCount: crossCount,
-              mainAxisExtent: posterWidth / 0.68 + textHeight,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => index >= list.length
-                  ? null
-                  : BangumiCardV(bangumiItem: list[index]),
-              childCount: list.length,
-            ),
+            ],
           ),
         );
       },
     );
   }
 
-  Future<void> showTagMenu() async {
-    final RenderBox renderBox =
-        selectorKey.currentContext!.findRenderObject() as RenderBox;
-    final Offset offset = renderBox.localToGlobal(Offset.zero);
-    final Size size = renderBox.size;
-    final selected = await Navigator.push<String>(
-        context,
-        PageRouteBuilder(
-            opaque: false,
-            barrierDismissible: true,
-            barrierColor: Colors.transparent,
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                CustomDropdownMenu(
-                    offset: offset,
-                    buttonSize: size,
-                    animation: animation,
-                    maxWidth: 80,
-                    items: ['', ...defaultAnimeTags],
-                    itemBuilder: (item) => item.isEmpty ? 'Discover' : item),
-            transitionDuration: const Duration(milliseconds: 200),
-            reverseTransitionDuration: const Duration(milliseconds: 150)));
-    if (selected == null) return;
-    if (selected == '' && popularController.currentTag != '') {
-      scrollController.animateTo(0,
-          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-      popularController.setCurrentTag('');
-      popularController.clearBangumiList();
-      if (popularController.trendList.isEmpty)
-        await popularController.queryBangumiByTrend();
-    } else if (selected != '' && selected != popularController.currentTag) {
-      scrollController.animateTo(0,
-          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-      popularController.setCurrentTag(selected);
-      await popularController.queryBangumiByTag(type: 'init');
+  Widget _buildTagChips(ColorScheme scheme) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: Wrap(
+            alignment: WrapAlignment.start,
+            runAlignment: WrapAlignment.start,
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _tagChip(
+                '热门',
+                popularController.currentTag.isEmpty,
+                scheme,
+                onTap: () => _selectCategory(''),
+              ),
+              ...defaultAnimeTags.map(
+                (tag) => _tagChip(
+                  tag,
+                  popularController.currentTag == tag,
+                  scheme,
+                  onTap: () => _selectCategory(tag),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _tagChip(String label, bool selected, ColorScheme scheme,
+      {required VoidCallback onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: selected ? null : onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: KazumiDurations.fast,
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primaryContainer.withValues(alpha: 0.84)
+                : scheme.surfaceContainerHighest.withValues(alpha: 0.58),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.34)
+                  : scheme.outlineVariant.withValues(alpha: 0.34),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? scheme.onPrimaryContainer : scheme.onSurface,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+              fontSize: 14,
+              height: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGrid(List<BangumiItem> list) {
+    if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: _DesktopContentFrame(
+        top: 10,
+        bottom: 24,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final metrics = _ContentWidthMetrics.from(constraints.maxWidth);
+            final crossCount =
+                popularPosterGridColumnCount(metrics.contentWidth);
+            final gridGap = popularPosterGridGap(metrics.contentWidth);
+            final textHeight =
+                popularPosterGridTextHeight(metrics.contentWidth);
+            final posterAspectRatio =
+                popularPosterAspectRatio(metrics.contentWidth);
+            final cardWidth =
+                (metrics.contentWidth - (crossCount - 1) * gridGap) /
+                    crossCount;
+
+            return SizedBox(
+              width: metrics.contentWidth,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  mainAxisSpacing: gridGap + 4,
+                  crossAxisSpacing: gridGap,
+                  crossAxisCount: crossCount,
+                  mainAxisExtent: cardWidth / posterAspectRatio + textHeight,
+                ),
+                itemCount: list.length,
+                itemBuilder: (context, index) => BangumiCardV(
+                  bangumiItem: list[index],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingSpotlight(ColorScheme scheme) {
+    return SliverToBoxAdapter(
+      child: _DesktopContentFrame(
+        top: 18,
+        bottom: 8,
+        child: _SkeletonSpotlight(scheme: scheme),
+      ),
+    );
+  }
+
+  Widget _buildLoadingPosterGrid(ColorScheme scheme) {
+    return SliverToBoxAdapter(
+      child: _DesktopContentFrame(
+        top: 10,
+        bottom: 24,
+        child: Wrap(
+          spacing: 14,
+          runSpacing: 18,
+          children: [
+            for (var index = 0; index < 12; index++)
+              _SkeletonPosterTile(scheme: scheme),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SpotlightSurface extends StatelessWidget {
+  const _SpotlightSurface({
+    required this.item,
+    required this.items,
+    required this.selectedIndex,
+    required this.loading,
+    required this.isWide,
+    required this.onOpenDetails,
+    required this.onRefresh,
+    required this.onSelect,
+  });
+
+  final BangumiItem item;
+  final List<BangumiItem> items;
+  final int selectedIndex;
+  final bool loading;
+  final bool isWide;
+  final VoidCallback onOpenDetails;
+  final VoidCallback onRefresh;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow
+              .withValues(alpha: isDark ? 0.74 : 0.86),
+          borderRadius: BorderRadius.circular(KazumiRadius.lg),
+          border: Border.all(
+            color:
+                scheme.outlineVariant.withValues(alpha: isDark ? 0.26 : 0.38),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.08),
+              blurRadius: 26,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(KazumiRadius.lg),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _SpotlightBackdrop(item: item),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      scheme.surface.withValues(alpha: isDark ? 0.88 : 0.82),
+                      scheme.surface.withValues(alpha: isDark ? 0.70 : 0.56),
+                      scheme.surface.withValues(alpha: isDark ? 0.18 : 0.10),
+                    ],
+                    stops: const [0, 0.58, 1],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.all(isWide ? 18 : 14),
+                child: isWide ? _buildWide(context) : _buildNarrow(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWide(BuildContext context) {
+    return Row(
+      children: [
+        _FeaturedPoster(item: item, width: 176, height: double.infinity),
+        const SizedBox(width: 22),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _SpotlightCopy(
+                  item: item,
+                  loading: loading,
+                  onOpenDetails: onOpenDetails,
+                  onRefresh: onRefresh,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _SpotlightThumbnailRail(
+                items: items,
+                selectedIndex: selectedIndex,
+                onSelect: onSelect,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNarrow(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 210,
+          child: Row(
+            children: [
+              _FeaturedPoster(item: item, width: 132, height: 210),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _SpotlightCopy(
+                  item: item,
+                  loading: loading,
+                  onOpenDetails: onOpenDetails,
+                  onRefresh: onRefresh,
+                  compact: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        _SpotlightThumbnailRail(
+          items: items,
+          selectedIndex: selectedIndex,
+          onSelect: onSelect,
+        ),
+      ],
+    );
+  }
+}
+
+class _SpotlightBackdrop extends StatelessWidget {
+  const _SpotlightBackdrop({required this.item});
+
+  final BangumiItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: NetworkImgLayer(
+        src: _bangumiPosterImage(item),
+        width: double.infinity,
+        height: double.infinity,
+        type: 'bg',
+        quality: 96,
+        color: Colors.black.withValues(alpha: 0.12),
+        colorBlendMode: BlendMode.darken,
+      ),
+    );
+  }
+}
+
+class _SpotlightCopy extends StatelessWidget {
+  const _SpotlightCopy({
+    required this.item,
+    required this.loading,
+    required this.onOpenDetails,
+    required this.onRefresh,
+    this.compact = false,
+  });
+
+  final BangumiItem item;
+  final bool loading;
+  final VoidCallback onOpenDetails;
+  final VoidCallback onRefresh;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = _bangumiTitle(item);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatusPill(
+          icon: Icons.auto_awesome_rounded,
+          label: '精选推荐',
+          color: scheme.primary,
+        ),
+        const SizedBox(height: 14),
+        Text(
+          title,
+          maxLines: compact ? 2 : 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: scheme.onSurface,
+            fontSize: compact ? 24 : 30,
+            fontWeight: FontWeight.w900,
+            height: 1.05,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _MetaPill(
+              icon: Icons.star_rounded,
+              label: item.ratingScore > 0
+                  ? '评分 ${item.ratingScore.toStringAsFixed(1)}'
+                  : '暂无评分',
+            ),
+            if (item.rank > 0)
+              _MetaPill(
+                icon: Icons.emoji_events_rounded,
+                label: 'Bangumi #${item.rank}',
+              ),
+            if (item.airDate.isNotEmpty)
+              _MetaPill(
+                icon: Icons.calendar_month_rounded,
+                label: item.airDate,
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          item.summary.trim().isNotEmpty
+              ? item.summary.trim()
+              : '暂时没有简介，可以先进入详情查看播放源和更多资料。',
+          maxLines: compact ? 3 : 4,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.icon(
+              onPressed: onOpenDetails,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('打开详情'),
+            ),
+            const SizedBox(width: 10),
+            IconButton.filledTonal(
+              tooltip: '换一组精选',
+              onPressed: loading ? null : onRefresh,
+              icon: loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SpotlightThumbnailRail extends StatelessWidget {
+  const _SpotlightThumbnailRail({
+    required this.items,
+    required this.selectedIndex,
+    required this.onSelect,
+  });
+
+  final List<BangumiItem> items;
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = _spotlightThumbnailWidth(
+          availableWidth: constraints.maxWidth,
+          itemCount: items.length,
+          gap: _spotlightThumbnailGap,
+        );
+
+        return SizedBox(
+          height: _spotlightThumbnailRailHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemCount: items.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: _spotlightThumbnailGap),
+            itemBuilder: (context, index) => SizedBox(
+              width: itemWidth,
+              child: _SpotlightThumbnailButton(
+                item: items[index],
+                selected: index == selectedIndex,
+                onTap: () => onSelect(index),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SpotlightThumbnailButton extends StatelessWidget {
+  const _SpotlightThumbnailButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final BangumiItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: KazumiDurations.fast,
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primaryContainer.withValues(alpha: 0.64)
+                : scheme.surfaceContainerHigh.withValues(alpha: 0.58),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.62)
+                  : scheme.outlineVariant.withValues(alpha: 0.34),
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(7),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _BangumiPosterImage(
+                  item: item,
+                  width: 42,
+                  height: 62,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _bangumiTitle(item),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurface,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        height: 1.12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _bangumiMeta(item),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturedPoster extends StatelessWidget {
+  const _FeaturedPoster({
+    required this.item,
+    required this.width,
+    required this.height,
+  });
+
+  final BangumiItem item;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Hero(
+      tag: item.id,
+      flightShuttleBuilder: NetworkImgLayer.heroFlightShuttleBuilder,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.24),
+              blurRadius: 22,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _BangumiPosterImage(item: item, width: width, height: height),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.28),
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BangumiPosterImage extends StatelessWidget {
+  const _BangumiPosterImage({
+    required this.item,
+    required this.width,
+    required this.height,
+  });
+
+  final BangumiItem item;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = _bangumiPosterImage(item);
+    if (imageUrl.isEmpty) {
+      return _ImageFallbackSurface(width: width, height: height);
     }
+
+    return NetworkImgLayer(
+      src: imageUrl,
+      width: width,
+      height: height,
+      quality: 150,
+      fadeInDuration: KazumiDurations.fast,
+      fadeOutDuration: KazumiDurations.fast,
+    );
+  }
+}
+
+class _ImageFallbackSurface extends StatelessWidget {
+  const _ImageFallbackSurface({
+    required this.width,
+    required this.height,
+  });
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fallbackSize =
+        math.min(width.isFinite ? width : 120, height.isFinite ? height : 120);
+
+    return Container(
+      width: width,
+      height: height,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.70),
+      child: Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          size: fallbackSize * 0.24,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.54),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendCategoryBar extends StatelessWidget {
+  const _TrendCategoryBar({
+    required this.title,
+    required this.subtitle,
+    required this.count,
+    required this.loading,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final int count;
+  final bool loading;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _DesktopContentFrame(
+      top: 18,
+      bottom: 12,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final metrics = _ContentWidthMetrics.from(constraints.maxWidth);
+          final compactHeader = metrics.contentWidth < 720;
+
+          return SizedBox(
+            width: metrics.contentWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTrendHeader(context, scheme, compactHeader),
+                const SizedBox(height: 14),
+                _MediaFilterHeader(child: child),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTrendHeader(
+    BuildContext context,
+    ColorScheme scheme,
+    bool compact,
+  ) {
+    final countBadge = _TrendCountBadge(
+      label: loading
+          ? '加载中'
+          : count == 0
+              ? '暂无条目'
+              : '$count 部作品',
+      loading: loading,
+    );
+    final titleBlock = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.18,
+            ),
+          ),
+        ],
+      ),
+    );
+    final leading = Icon(
+      Icons.local_fire_department_rounded,
+      size: 22,
+      color: scheme.primary,
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: leading,
+              ),
+              const SizedBox(width: 8),
+              titleBlock,
+            ],
+          ),
+          const SizedBox(height: 10),
+          countBadge,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        leading,
+        const SizedBox(width: 8),
+        titleBlock,
+        const SizedBox(width: 14),
+        countBadge,
+      ],
+    );
+  }
+}
+
+class _TrendCountBadge extends StatelessWidget {
+  const _TrendCountBadge({
+    required this.label,
+    required this.loading,
+  });
+
+  final String label;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.38),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading) ...[
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(width: 7),
+            ],
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: scheme.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaFilterHeader extends StatelessWidget {
+  const _MediaFilterHeader({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: AnimatedSize(
+            duration: KazumiDurations.fast,
+            alignment: Alignment.topLeft,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: scheme.onPrimaryContainer),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.52),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.32),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: scheme.primary),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopContentFrame extends StatelessWidget {
+  const _DesktopContentFrame({
+    required this.child,
+    this.top = 0,
+    this.bottom = 0,
+  });
+
+  final Widget child;
+  final double top;
+  final double bottom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: top, bottom: bottom),
+      child: KazumiDesktopPageFrame(
+        maxWidth: double.infinity,
+        child: child,
+      ),
+    );
+  }
+}
+
+class _ContentWidthMetrics {
+  const _ContentWidthMetrics({required this.contentWidth});
+
+  final double contentWidth;
+
+  factory _ContentWidthMetrics.from(double viewportWidth) {
+    return _ContentWidthMetrics(contentWidth: viewportWidth);
   }
 }
 
@@ -590,4 +1561,200 @@ class _ContinueWatchingTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SkeletonSpotlight extends StatelessWidget {
+  const _SkeletonSpotlight({required this.scheme});
+
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 306,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow.withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(KazumiRadius.lg),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.32),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            _SkeletonBlock(
+              width: 170,
+              height: double.infinity,
+              radius: 14,
+              scheme: scheme,
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _SkeletonBlock(
+                    width: 112,
+                    height: 30,
+                    radius: 999,
+                    scheme: scheme,
+                  ),
+                  const SizedBox(height: 18),
+                  _SkeletonBlock(
+                    width: 420,
+                    height: 36,
+                    radius: 10,
+                    scheme: scheme,
+                  ),
+                  const SizedBox(height: 12),
+                  _SkeletonBlock(
+                    width: 560,
+                    height: 16,
+                    radius: 8,
+                    scheme: scheme,
+                    opacity: 0.62,
+                  ),
+                  const SizedBox(height: 8),
+                  _SkeletonBlock(
+                    width: 520,
+                    height: 16,
+                    radius: 8,
+                    scheme: scheme,
+                    opacity: 0.48,
+                  ),
+                  const SizedBox(height: 26),
+                  Row(
+                    children: [
+                      for (var index = 0; index < 4; index++) ...[
+                        Expanded(
+                          child: _SkeletonBlock(
+                            width: double.infinity,
+                            height: _spotlightThumbnailRailHeight,
+                            radius: 12,
+                            scheme: scheme,
+                            opacity: 0.72,
+                          ),
+                        ),
+                        if (index != 3)
+                          const SizedBox(width: _spotlightThumbnailGap),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonPosterTile extends StatelessWidget {
+  const _SkeletonPosterTile({required this.scheme});
+
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SkeletonBlock(
+            width: 150,
+            height: 216,
+            radius: 12,
+            scheme: scheme,
+          ),
+          const SizedBox(height: 8),
+          _SkeletonBlock(
+            width: 126,
+            height: 13,
+            radius: 6,
+            scheme: scheme,
+            opacity: 0.58,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock({
+    required this.width,
+    required this.height,
+    required this.radius,
+    required this.scheme,
+    this.opacity = 1,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+  final ColorScheme scheme;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.84 * opacity),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.18),
+        ),
+      ),
+    );
+  }
+}
+
+String _bangumiTitle(BangumiItem item) {
+  return item.nameCn.isNotEmpty ? item.nameCn : item.name;
+}
+
+String _bangumiMeta(BangumiItem item) {
+  if (item.ratingScore > 0) {
+    return '评分 ${item.ratingScore.toStringAsFixed(1)}';
+  }
+  if (item.rank > 0) {
+    return 'Bangumi #${item.rank}';
+  }
+  if (item.airDate.isNotEmpty) {
+    return item.airDate;
+  }
+  return '暂无评分';
+}
+
+String _bangumiPosterImage(BangumiItem item) {
+  return bestBangumiPosterImage(item.images);
+}
+
+String bestBangumiPosterImage(Map<String, String> images) {
+  for (final key in ['large', 'common', 'medium', 'small', 'grid']) {
+    final value = images[key]?.trim() ?? '';
+    if (value.isNotEmpty) return value;
+  }
+  return '';
+}
+
+double _spotlightThumbnailWidth({
+  required double availableWidth,
+  required int itemCount,
+  required double gap,
+}) {
+  if (itemCount <= 0) return _spotlightThumbnailMinimumWidth;
+  final ideal =
+      (availableWidth - gap * (itemCount - 1)) / math.max(1, itemCount);
+  return ideal.clamp(
+    _spotlightThumbnailMinimumWidth,
+    _spotlightThumbnailPreferredWidth,
+  );
 }
