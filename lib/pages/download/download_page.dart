@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
-import 'package:kazumi/modules/download/download_module.dart';
+import 'package:kazumi/design/desktop_layout.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/download/download_module.dart';
 import 'package:kazumi/pages/download/download_controller.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
 import 'package:kazumi/utils/format_utils.dart';
@@ -29,41 +33,58 @@ class _DownloadPageState extends State<DownloadPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SysAppBar(title: Text('下载管理')),
-      body: Observer(builder: (context) {
-        final recordKeys = downloadController.recordKeys.toList();
-        if (recordKeys.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.download_rounded,
-                  size: 72,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.5),
+      body: SafeArea(
+        top: false,
+        child: WindowControlInset(
+          child: Observer(builder: (context) {
+            final recordKeys = downloadController.recordKeys.toList();
+
+            return CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 18)),
+                SliverToBoxAdapter(
+                  child: KazumiDesktopPageFrame(
+                    maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+                    child: _MediaPageHeader(
+                      title: '下载管理',
+                      subtitle: recordKeys.isEmpty
+                          ? '离线缓存会在这里集中管理。'
+                          : '管理 ${recordKeys.length} 个离线缓存任务。',
+                      icon: Icons.download_for_offline_rounded,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  '暂无离线下载',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: KazumiSpacing.md),
+                ),
+                if (recordKeys.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: KazumiDesktopPageFrame(
+                      maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+                      child: const _DownloadEmptyState(),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: KazumiDesktopPageFrame(
+                      maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+                      child: Column(
+                        children: [
+                          for (final recordKey in recordKeys)
+                            _buildRecordCard(recordKey),
+                        ],
                       ),
+                    ),
+                  ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: KazumiSpacing.xl),
                 ),
               ],
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemCount: recordKeys.length,
-          itemBuilder: (context, index) {
-            return _buildRecordCard(recordKeys[index]);
-          },
-        );
-      }),
+            );
+          }),
+        ),
+      ),
     );
   }
 
@@ -78,67 +99,73 @@ class _DownloadPageState extends State<DownloadPage> {
         ..sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
       final completedCount = downloadController.completedCount(record);
 
-      return Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  record.bangumiCover,
-                  width: 48,
-                  height: 64,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+      return Padding(
+        padding: const EdgeInsets.only(bottom: KazumiSpacing.md),
+        child: KazumiGlassSurface(
+          borderRadius: KazumiRadius.cardBorder,
+          blurSigma: 14,
+          opacity:
+              Theme.of(context).brightness == Brightness.dark ? 0.64 : 0.76,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.network(
+                    record.bangumiCover,
                     width: 48,
                     height: 64,
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: const Icon(Icons.movie_outlined),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 48,
+                      height: 64,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: const Icon(Icons.movie_outlined),
+                    ),
                   ),
                 ),
-              ),
-              title: Text(
-                record.bangumiName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                '来源: ${record.pluginName} · $completedCount/${episodes.length} 已完成',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.outline,
+                title: Text(
+                  record.bangumiName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  '来源: ${record.pluginName} · $completedCount/${episodes.length} 已完成',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _confirmDeleteRecord(record);
+                    } else if (value == 'resume_all') {
+                      downloadController.resumeAllDownloads(
+                        record.bangumiId,
+                        record.pluginName,
+                      );
+                      KazumiDialog.showToast(message: '已开始恢复下载');
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'resume_all',
+                      child: Text('开始全部'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('删除全部'),
+                    ),
+                  ],
                 ),
               ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    _confirmDeleteRecord(record);
-                  } else if (value == 'resume_all') {
-                    downloadController.resumeAllDownloads(
-                      record.bangumiId,
-                      record.pluginName,
-                    );
-                    KazumiDialog.showToast(message: '已开始恢复下载');
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'resume_all',
-                    child: Text('开始全部'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('删除全部'),
-                  ),
-                ],
-              ),
-            ),
-            ...episodes.map((ep) => _buildEpisodeTile(record, ep)),
-          ],
+              ...episodes.map((ep) => _buildEpisodeTile(record, ep)),
+              const SizedBox(height: KazumiSpacing.sm),
+            ],
+          ),
         ),
       );
     });
@@ -198,8 +225,11 @@ class _DownloadPageState extends State<DownloadPage> {
   Widget _getStatusIcon(DownloadEpisode episode) {
     switch (episode.status) {
       case DownloadStatus.completed:
-        return Icon(Icons.offline_pin,
-            size: 20, color: Theme.of(context).colorScheme.primary);
+        return Icon(
+          Icons.offline_pin,
+          size: 20,
+          color: Theme.of(context).colorScheme.primary,
+        );
       case DownloadStatus.downloading:
         return SizedBox(
           width: 20,
@@ -210,14 +240,23 @@ class _DownloadPageState extends State<DownloadPage> {
           ),
         );
       case DownloadStatus.failed:
-        return Icon(Icons.error_outline,
-            size: 20, color: Theme.of(context).colorScheme.error);
+        return Icon(
+          Icons.error_outline,
+          size: 20,
+          color: Theme.of(context).colorScheme.error,
+        );
       case DownloadStatus.paused:
-        return Icon(Icons.pause_circle_outline,
-            size: 20, color: Theme.of(context).colorScheme.outline);
+        return Icon(
+          Icons.pause_circle_outline,
+          size: 20,
+          color: Theme.of(context).colorScheme.outline,
+        );
       case DownloadStatus.pending:
-        return Icon(Icons.hourglass_empty,
-            size: 20, color: Theme.of(context).colorScheme.outline);
+        return Icon(
+          Icons.hourglass_empty,
+          size: 20,
+          color: Theme.of(context).colorScheme.outline,
+        );
       case DownloadStatus.resolving:
         return const SizedBox(
           width: 20,
@@ -256,14 +295,19 @@ class _DownloadPageState extends State<DownloadPage> {
   }
 
   List<Widget> _getActionButtons(
-      DownloadRecord record, DownloadEpisode episode) {
+    DownloadRecord record,
+    DownloadEpisode episode,
+  ) {
     final buttons = <Widget>[];
 
     switch (episode.status) {
       case DownloadStatus.completed:
         buttons.add(IconButton(
-          icon: Icon(Icons.play_circle_outline,
-              size: 20, color: Theme.of(context).colorScheme.primary),
+          icon: Icon(
+            Icons.play_circle_outline,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           onPressed: () => _playEpisode(record, episode),
           tooltip: '播放',
           visualDensity: VisualDensity.compact,
@@ -307,8 +351,11 @@ class _DownloadPageState extends State<DownloadPage> {
         break;
       case DownloadStatus.pending:
         buttons.add(IconButton(
-          icon: Icon(Icons.priority_high,
-              size: 20, color: Theme.of(context).colorScheme.primary),
+          icon: Icon(
+            Icons.priority_high,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           onPressed: () {
             downloadController.priorityDownload(
               bangumiId: record.bangumiId,
@@ -388,7 +435,8 @@ class _DownloadPageState extends State<DownloadPage> {
       builder: (context) => AlertDialog(
         title: const Text('删除下载'),
         content: Text(
-            '确定要删除「${episode.episodeName.isNotEmpty ? episode.episodeName : '第${episode.episodeNumber}集'}」的下载文件吗？'),
+          '确定要删除「${episode.episodeName.isNotEmpty ? episode.episodeName : '第${episode.episodeNumber}集'}」的下载文件吗？',
+        ),
         actions: [
           TextButton(
             onPressed: () => KazumiDialog.dismiss(),
@@ -437,6 +485,115 @@ class _DownloadPageState extends State<DownloadPage> {
             child: const Text('删除'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MediaPageHeader extends StatelessWidget {
+  const _MediaPageHeader({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: dtb.DragToMoveArea(
+        child: KazumiGlassSurface(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: scheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.headlineSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DownloadEmptyState extends StatelessWidget {
+  const _DownloadEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: KazumiGlassSurface(
+        borderRadius: KazumiRadius.panelBorder,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 28,
+          vertical: 34,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.download_rounded,
+              size: 64,
+              color: scheme.primary.withValues(alpha: 0.72),
+            ),
+            const SizedBox(height: KazumiSpacing.md),
+            Text(
+              '暂无离线下载',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: KazumiSpacing.xs),
+            Text(
+              '在详情页选择集数并缓存后，会出现在这里。',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

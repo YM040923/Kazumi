@@ -538,6 +538,21 @@ void main() {
     }
   });
 
+  test('download and history pages use the media page frame', () {
+    final pagePaths = [
+      'lib/pages/download/download_page.dart',
+      'lib/pages/history/history_page.dart',
+    ];
+
+    for (final path in pagePaths) {
+      final source = File(path).readAsStringSync();
+      expect(source, contains('KazumiDesktopPageFrame'), reason: path);
+      expect(source, contains('KazumiGlassSurface'), reason: path);
+      expect(source, contains('WindowControlInset'), reason: path);
+      expect(source, isNot(contains('SysAppBar')), reason: path);
+    }
+  });
+
   test('detail page keeps screenshot-style five-tab media information layout',
       () {
     final source = File('lib/pages/info/info_page.dart').readAsStringSync();
