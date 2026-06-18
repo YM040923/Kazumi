@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/constants.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 
 class KeyboardSettingsPage extends StatefulWidget {
   const KeyboardSettingsPage({super.key});
@@ -24,13 +26,15 @@ class _KeyboardSettingsPageState extends State<KeyboardSettingsPage> {
 
   @override
   void initState() {
-    super.initState();    
+    super.initState();
     // 根据默认快捷键生成可用快捷键列表，并读取已设置值
     shortcuts = {
       for (var key in defaultShortcuts.keys)
-        key: (setting.get('shortcut_$key', 
-                defaultValue: defaultShortcuts[key]?.toList() ?? <String>[]) 
-              ?.cast<String>() ?? [])
+        key: (setting
+                .get('shortcut_$key',
+                    defaultValue: defaultShortcuts[key]?.toList() ?? <String>[])
+                ?.cast<String>() ??
+            [])
     };
   }
 
@@ -46,6 +50,7 @@ class _KeyboardSettingsPageState extends State<KeyboardSettingsPage> {
     focusNode.dispose();
     super.dispose();
   }
+
   bool handleShortcutInput(String rawKey) {
     if (listeningFunction == null || listeningIndex == null) return false;
 
@@ -61,7 +66,7 @@ class _KeyboardSettingsPageState extends State<KeyboardSettingsPage> {
         if (otherFunc == func && i == index) continue;
         if (otherKeys[i] == rawKey) {
           final name = shortcutsChineseName[otherFunc] ?? otherFunc;
-          KazumiDialog.showToast(message: "按键已被【$name】占用，请重新输入");
+          KazumiDialog.showToast(message: '按键已被【$name】占用，请重新输入');
           return true;
         }
       }
@@ -91,23 +96,6 @@ class _KeyboardSettingsPageState extends State<KeyboardSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: SysAppBar(
-        title: Text('快捷键'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '恢复默认',
-            onPressed: () {
-              setState(() {
-                for (final func in shortcuts.keys) {
-                  shortcuts[func] = defaultShortcuts[func]?.toList() ?? [];
-                  setting.put('shortcut_$func', shortcuts[func]);
-                }
-              });
-            },
-          ),
-        ],
-      ),
       body: FocusScope(
         autofocus: true,
         child: Focus(
@@ -127,67 +115,92 @@ class _KeyboardSettingsPageState extends State<KeyboardSettingsPage> {
             final handled = handleShortcutInput(rawKey);
             return handled ? KeyEventResult.handled : KeyEventResult.ignored;
           },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children:
-              shortcuts.entries.map((entry) {
-                final func = entry.key;
-                final keys = entry.value;
-                return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
+          child: KazumiSettingsPageShell(
+            title: '快捷键',
+            subtitle: '管理播放器和全局操作的键盘快捷方式。',
+            icon: Icons.keyboard_rounded,
+            actions: IconButton.filledTonal(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: '恢复默认',
+              onPressed: () {
+                setState(() {
+                  for (final func in shortcuts.keys) {
+                    shortcuts[func] = defaultShortcuts[func]?.toList() ?? [];
+                    setting.put('shortcut_$func', shortcuts[func]);
+                  }
+                });
+              },
+            ),
+            children: shortcuts.entries.map((entry) {
+              final func = entry.key;
+              final keys = entry.value;
+              return KazumiGlassSurface(
+                borderRadius: KazumiRadius.cardBorder,
+                blurSigma: 14,
+                opacity: Theme.of(context).brightness == Brightness.dark
+                    ? 0.64
+                    : 0.76,
+                padding: const EdgeInsets.all(KazumiSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
                             shortcutsChineseName[func] ?? func,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
-                          Spacer(),
-                          IconButton(
-                            icon: Icon(Icons.add),
-                            onPressed: () {
-                              keys.removeWhere((key) => key.isEmpty || key == '...');
-                              setState(() => keys.add(''));
-                              setting.put('shortcut_$func', keys);
-                              startListening(func, keys.length - 1);
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            focusNode: FocusNode(canRequestFocus: false),
-                          ),
-                        ],
-                      ),
-                      if (keys.isNotEmpty) const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (int i = 0; i < keys.length; i++)
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_rounded),
+                          tooltip: '添加快捷键',
+                          onPressed: () {
+                            keys.removeWhere(
+                                (key) => key.isEmpty || key == '...');
+                            setState(() => keys.add(''));
+                            setting.put('shortcut_$func', keys);
+                            startListening(func, keys.length - 1);
+                          },
+                          focusNode: FocusNode(canRequestFocus: false),
+                        ),
+                      ],
+                    ),
+                    if (keys.isNotEmpty)
+                      const SizedBox(height: KazumiSpacing.sm),
+                    Wrap(
+                      spacing: KazumiSpacing.sm,
+                      runSpacing: KazumiSpacing.sm,
+                      children: [
+                        for (int i = 0; i < keys.length; i++)
                           ActionChip(
-                            label: Text(keyAliases[keys[i]] ?? keys[i],),
-                            avatar: keys.length >=2 ?Icon(Icons.cancel) :Icon(Icons.edit),
-                            onPressed: (keys.length >=2)
-                              ?() {
-                                setState(() {
-                                  keys.removeAt(i);
-                                  listeningIndex = null;
-                                  if (keys.length >1){
-                                    keys.removeWhere((key) => key.isEmpty || key == '...');
+                            label: Text(keyAliases[keys[i]] ?? keys[i]),
+                            avatar: Icon(
+                              keys.length >= 2
+                                  ? Icons.cancel_rounded
+                                  : Icons.edit_rounded,
+                            ),
+                            onPressed: (keys.length >= 2)
+                                ? () {
+                                    setState(() {
+                                      keys.removeAt(i);
+                                      listeningIndex = null;
+                                      if (keys.length > 1) {
+                                        keys.removeWhere((key) =>
+                                            key.isEmpty || key == '...');
+                                      }
+                                      setting.put('shortcut_$func', keys);
+                                    });
                                   }
-                                  setting.put('shortcut_$func', keys);
-                                });
-                              }
-                              :() => startListening(func, 0),
+                                : () => startListening(func, 0),
                             focusNode: FocusNode(canRequestFocus: false),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             }).toList(),

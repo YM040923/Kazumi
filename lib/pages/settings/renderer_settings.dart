@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/constants.dart';
@@ -30,12 +30,10 @@ class _RendererSettingsState extends State<RendererSettings> {
     final entries = androidVideoRenderersList.entries.toList();
 
     return Scaffold(
-      appBar: const SysAppBar(title: Text('视频渲染器')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KazumiSpacing.md,
-          vertical: KazumiSpacing.sm,
-        ),
+      body: KazumiSettingsPageShell(
+        title: '视频渲染器',
+        subtitle: '选择适合当前设备的视频输出方式。',
+        icon: Icons.videocam_rounded,
         children: [
           SettingsSectionCard(
             title: '选择合适的渲染器以获得最佳播放体验',

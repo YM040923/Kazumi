@@ -34,11 +34,15 @@ void main() {
     expect(desktopLayoutSource, contains('final frameWidth'));
     expect(desktopLayoutSource, contains('width: frameWidth'));
 
-    expect(mainSource, contains('defaultDesktopWindowSize = Size(1280, 860)'));
-    expect(mainSource, contains('minimumDesktopWindowSize = Size(960, 640)'));
+    expect(mainSource, contains('_desktopMinimumWindowSize = Size(960, 640)'));
+    expect(mainSource, contains('const Size(1360, 860)'));
+    expect(
+        mainSource, contains('_initialDesktopWindowSize(initialWindowSize)'));
+    expect(mainSource, contains('_initialDesktopWindowPosition()'));
     expect(mainSource, contains('SettingBoxKey.desktopWindowWidth'));
     expect(mainSource, contains('SettingBoxKey.desktopWindowHeight'));
-    expect(mainSource, isNot(contains('await windowManager.setSize(desktopWindowSize)')));
+    expect(mainSource,
+        isNot(contains('await windowManager.setSize(desktopWindowSize)')));
     expect(windowsRunnerSource, contains('kDefaultWindowWidth = 1280'));
     expect(windowsRunnerSource, contains('kDefaultWindowHeight = 860'));
     expect(windowsRunnerSource, contains('kMinimumWindowWidth = 960'));
@@ -84,8 +88,8 @@ void main() {
     final menuSource = File('lib/pages/menu/menu.dart').readAsStringSync();
     final windowControlsSource =
         File('lib/bean/appbar/desktop_window_controls.dart').readAsStringSync();
-    final windowControlsHostSource = File('lib/bean/appbar/window_control_inset.dart')
-        .readAsStringSync();
+    final windowControlsHostSource =
+        File('lib/bean/appbar/window_control_inset.dart').readAsStringSync();
     final sysAppBarSource =
         File('lib/bean/appbar/sys_app_bar.dart').readAsStringSync();
     final popularSource =
@@ -100,9 +104,9 @@ void main() {
         File('lib/pages/settings/displaymode_settings.dart').readAsStringSync();
     final storageErrorSource =
         File('lib/pages/error/storage_error_page.dart').readAsStringSync();
-    final danmakuShieldSheetSource = File(
-            'lib/pages/settings/danmaku/danmaku_shield_settings_sheet.dart')
-        .readAsStringSync();
+    final danmakuShieldSheetSource =
+        File('lib/pages/settings/danmaku/danmaku_shield_settings_sheet.dart')
+            .readAsStringSync();
     final indexModuleSource =
         File('lib/pages/index_module.dart').readAsStringSync();
 
@@ -112,8 +116,10 @@ void main() {
     ]) {
       expect(storageSource, contains(marker));
     }
-    expect(mainSource, contains('_initialDesktopWindowSize()'));
-    expect(mainSource, contains('GStorage.setting.get(SettingBoxKey.desktopWindowWidth'));
+    expect(
+        mainSource, contains('_initialDesktopWindowSize(initialWindowSize)'));
+    expect(mainSource,
+        contains('GStorage.setting.get(SettingBoxKey.desktopWindowWidth'));
     expect(appWidgetSource, contains('_persistDesktopWindowSize'));
     expect(appWidgetSource, contains('onWindowResize'));
     expect(appWidgetSource, contains('windowManager.getSize()'));
@@ -142,7 +148,8 @@ void main() {
     }
     expect(appWidgetSource, contains('DesktopWindowControlsOverlay'));
     expect(appWidgetSource, contains('builder: (context, child)'));
-    expect(appWidgetSource, contains('child: child ?? const SizedBox.shrink()'));
+    expect(
+        appWidgetSource, contains('child: child ?? const SizedBox.shrink()'));
 
     expect(sysAppBarSource, contains('WindowControlInset'));
     expect(sysAppBarSource, isNot(contains('windowManager.close()')));
@@ -169,7 +176,8 @@ void main() {
       danmakuShieldSheetSource,
       indexModuleSource,
     ]) {
-      expect(source, anyOf(contains('WindowControlInset'), contains('SysAppBar')));
+      expect(
+          source, anyOf(contains('WindowControlInset'), contains('SysAppBar')));
     }
     final overlayControlsSource = windowControlsSource.substring(
       windowControlsSource.indexOf('class _OverlayWindowControls'),
@@ -195,8 +203,8 @@ void main() {
       expect(source, contains('WindowControlInset'));
       expect(source, isNot(contains('DesktopWindowControlHost')));
       expect(source, isNot(contains('const DesktopWindowControls()')));
-      expect(source,
-          isNot(contains('DesktopWindowControls(trailingSpacing: 0)')));
+      expect(
+          source, isNot(contains('DesktopWindowControls(trailingSpacing: 0)')));
     }
 
     for (final source in [
@@ -209,7 +217,8 @@ void main() {
     }
   });
 
-  test('continue watching stays before discover poster wall and can delete', () {
+  test('continue watching stays before discover poster wall and can delete',
+      () {
     final popularSource =
         File('lib/pages/popular/popular_page.dart').readAsStringSync();
     final continueWatchingSource =
@@ -313,12 +322,15 @@ void main() {
     final timelineSource =
         File('lib/pages/timeline/timeline_page.dart').readAsStringSync();
     final settingsSource = File('lib/pages/my/my_page.dart').readAsStringSync();
-    final searchSource = File('lib/pages/search/search_page.dart').readAsStringSync();
+    final searchSource =
+        File('lib/pages/search/search_page.dart').readAsStringSync();
     final infoSource = File('lib/pages/info/info_page.dart').readAsStringSync();
 
     expect(timelineSource, isNot(contains('required this.onBack')));
-    expect(timelineSource, isNot(contains('onBack: () => onBackPressed(context)')));
-    expect(timelineSource, isNot(contains('icon: const Icon(Icons.arrow_back),')));
+    expect(timelineSource,
+        isNot(contains('onBack: () => onBackPressed(context)')));
+    expect(
+        timelineSource, isNot(contains('icon: const Icon(Icons.arrow_back),')));
 
     expect(settingsSource, contains('_SettingsHeader()'));
     expect(settingsSource, isNot(contains('_SettingsHeader(onBack:')));
@@ -388,7 +400,8 @@ void main() {
   test('top-level initialization error page uses valid Chinese text', () {
     final source = File('lib/pages/index_module.dart').readAsStringSync();
 
-    expect(source, anyOf(contains(r'\u521d\u59cb\u5316\u5931\u8d25'), contains('初始化失败')));
+    expect(source,
+        anyOf(contains(r'\u521d\u59cb\u5316\u5931\u8d25'), contains('初始化失败')));
     expect(source, isNot(contains('鍒濆')));
   });
 
@@ -425,7 +438,10 @@ void main() {
       (escaped: r'\u7ed3\u679c\u4e0d\u51c6\u786e\uff1f', text: '结果不准确？'),
       (escaped: r'\u522b\u540d\u68c0\u7d22', text: '别名检索'),
       (escaped: r'\u624b\u52a8\u68c0\u7d22', text: '手动检索'),
-      (escaped: r'\u6682\u65e0\u53ef\u7528\u89c6\u9891\u6765\u6e90', text: '暂无可用视频来源'),
+      (
+        escaped: r'\u6682\u65e0\u53ef\u7528\u89c6\u9891\u6765\u6e90',
+        text: '暂无可用视频来源'
+      ),
     ]) {
       expect(source, anyOf(contains(marker.escaped), contains(marker.text)));
     }
@@ -459,7 +475,41 @@ void main() {
     expect(source, isNot(contains('???')));
   });
 
-  test('detail page keeps screenshot-style five-tab media information layout', () {
+  test('secondary settings pages use the unified glass settings shell', () {
+    final shellSource =
+        File('lib/bean/widget/settings_page_shell.dart').readAsStringSync();
+    final pagePaths = [
+      'lib/pages/settings/download_settings.dart',
+      'lib/pages/settings/player_settings.dart',
+      'lib/pages/settings/danmaku/danmaku_settings.dart',
+      'lib/pages/settings/decoder_settings.dart',
+      'lib/pages/settings/renderer_settings.dart',
+      'lib/pages/settings/super_resolution_settings.dart',
+      'lib/pages/settings/displaymode_settings.dart',
+      'lib/pages/settings/keyboard_settings.dart',
+      'lib/pages/settings/proxy/proxy_settings_page.dart',
+    ];
+
+    for (final marker in [
+      'KazumiSettingsPageShell',
+      'WindowControlInset',
+      'KazumiDesktopPageFrame',
+      'KazumiGlassSurface',
+      'dtb.DragToMoveArea',
+    ]) {
+      expect(shellSource, contains(marker));
+    }
+
+    for (final path in pagePaths) {
+      final source = File(path).readAsStringSync();
+      expect(source, contains('KazumiSettingsPageShell('), reason: path);
+      expect(source, isNot(contains('SysAppBar')), reason: path);
+      expect(source, isNot(contains('appBar:')), reason: path);
+    }
+  });
+
+  test('detail page keeps screenshot-style five-tab media information layout',
+      () {
     final source = File('lib/pages/info/info_page.dart').readAsStringSync();
     final moduleSource =
         File('lib/pages/info/info_module.dart').readAsStringSync();
@@ -544,4 +594,3 @@ void main() {
     expect(fixtureSource, contains('400602_ZI8Y9.jpg'));
   });
 }
-

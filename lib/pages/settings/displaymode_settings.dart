@@ -3,8 +3,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 
@@ -65,14 +65,12 @@ class _SetDisplayModeState extends State<SetDisplayMode> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: const SysAppBar(title: Text('屏幕帧率设置')),
       body: modes.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: KazumiSpacing.md,
-                vertical: KazumiSpacing.sm,
-              ),
+          : KazumiSettingsPageShell(
+              title: '屏幕帧率设置',
+              subtitle: '选择当前设备可用的屏幕刷新率模式。',
+              icon: Icons.screenshot_monitor_rounded,
               children: [
                 SettingsSectionCard(
                   title: '没有生效? 重启app试试',

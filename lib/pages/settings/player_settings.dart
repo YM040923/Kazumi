@@ -4,8 +4,8 @@ import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/utils/storage.dart';
@@ -48,9 +48,8 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
     super.initState();
     defaultPlaySpeed =
         setting.get(SettingBoxKey.defaultPlaySpeed, defaultValue: 1.0);
-    defaultShortcutForwardPlaySpeed =
-        setting.get(SettingBoxKey.defaultShortcutForwardPlaySpeed,
-            defaultValue: 2.0);
+    defaultShortcutForwardPlaySpeed = setting
+        .get(SettingBoxKey.defaultShortcutForwardPlaySpeed, defaultValue: 2.0);
     defaultAspectRatioType =
         setting.get(SettingBoxKey.defaultAspectRatioType, defaultValue: 1);
     hAenable = setting.get(SettingBoxKey.hAenable, defaultValue: true);
@@ -69,12 +68,11 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
     autoPlayNext = setting.get(SettingBoxKey.autoPlayNext, defaultValue: true);
     backgroundPlayback =
         setting.get(SettingBoxKey.backgroundPlayback, defaultValue: false);
-    playerDisableAnimations = setting
-        .get(SettingBoxKey.playerDisableAnimations, defaultValue: false);
+    playerDisableAnimations =
+        setting.get(SettingBoxKey.playerDisableAnimations, defaultValue: false);
     forceAdBlocker =
         setting.get(SettingBoxKey.forceAdBlocker, defaultValue: false);
-    playerLogLevel =
-        setting.get(SettingBoxKey.playerLogLevel, defaultValue: 2);
+    playerLogLevel = setting.get(SettingBoxKey.playerLogLevel, defaultValue: 2);
     brightnessVolumeGesture =
         setting.get(SettingBoxKey.brightnessVolumeGesture, defaultValue: true);
     playerButtonSkipTime =
@@ -91,8 +89,7 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
 
   Future<void> updateButtonSkipTime() async {
     final int? newButtonSkipTime = await _showSkipTimeChangeDialog(
-        title: '顶部按钮快进时长',
-        initialValue: playerButtonSkipTime.toString());
+        title: '顶部按钮快进时长', initialValue: playerButtonSkipTime.toString());
     if (newButtonSkipTime != null &&
         newButtonSkipTime != playerButtonSkipTime) {
       setting.put(SettingBoxKey.buttonSkipTime, newButtonSkipTime);
@@ -124,8 +121,7 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
           TextButton(
             onPressed: () => KazumiDialog.dismiss(),
             child: Text('取消',
-                style:
-                    TextStyle(color: Theme.of(context).colorScheme.outline)),
+                style: TextStyle(color: Theme.of(context).colorScheme.outline)),
           ),
           TextButton(
             onPressed: () {
@@ -155,12 +151,10 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
-        appBar: const SysAppBar(title: Text('播放设置')),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KazumiSpacing.md,
-            vertical: KazumiSpacing.sm,
-          ),
+        body: KazumiSettingsPageShell(
+          title: '播放设置',
+          subtitle: '管理解码、播放行为、调试开关和默认播放参数。',
+          icon: Icons.play_circle_outline_rounded,
           children: [
             // 解码与渲染
             SettingsSectionCard(
@@ -257,7 +251,8 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                               label: entry.value,
                               selected: entry.key == defaultAspectRatioType,
                               onTap: () {
-                                setting.put(SettingBoxKey.defaultAspectRatioType,
+                                setting.put(
+                                    SettingBoxKey.defaultAspectRatioType,
                                     entry.key);
                                 setState(
                                     () => defaultAspectRatioType = entry.key);
@@ -274,7 +269,6 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: KazumiSpacing.xl),
           ],
         ),
       ),
@@ -358,7 +352,8 @@ class _PlayerSettingsPageState extends State<PlayerSettingsPage> {
         value: backgroundPlayback,
         onChanged: (v) async {
           backgroundPlayback = v;
-          await setting.put(SettingBoxKey.backgroundPlayback, backgroundPlayback);
+          await setting.put(
+              SettingBoxKey.backgroundPlayback, backgroundPlayback);
           setState(() {});
         },
       ),

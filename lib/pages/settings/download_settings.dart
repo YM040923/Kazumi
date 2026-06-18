@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 
@@ -32,12 +32,10 @@ class _DownloadSettingsPageState extends State<DownloadSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SysAppBar(title: Text('下载设置')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KazumiSpacing.md,
-          vertical: KazumiSpacing.sm,
-        ),
+      body: KazumiSettingsPageShell(
+        title: '下载设置',
+        subtitle: '调整缓存并发、分片数量和弹幕缓存行为。',
+        icon: Icons.download_for_offline_rounded,
         children: [
           SettingsSectionCard(
             title: '并发设置',
@@ -53,8 +51,8 @@ class _DownloadSettingsPageState extends State<DownloadSettingsPage> {
                 divisions: 4,
                 onChanged: (v) {
                   parallelEpisodes = v.toInt();
-                  setting.put(SettingBoxKey.downloadParallelEpisodes,
-                      parallelEpisodes);
+                  setting.put(
+                      SettingBoxKey.downloadParallelEpisodes, parallelEpisodes);
                   setState(() {});
                 },
               ),
@@ -68,8 +66,8 @@ class _DownloadSettingsPageState extends State<DownloadSettingsPage> {
                 divisions: 9,
                 onChanged: (v) {
                   parallelSegments = v.toInt();
-                  setting.put(SettingBoxKey.downloadParallelSegments,
-                      parallelSegments);
+                  setting.put(
+                      SettingBoxKey.downloadParallelSegments, parallelSegments);
                   setState(() {});
                 },
                 isLast: true,

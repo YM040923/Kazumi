@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
-import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/proxy_manager.dart';
 
@@ -54,12 +53,10 @@ class _ProxySettingsPageState extends State<ProxySettingsPage> {
       canPop: true,
       onPopInvokedWithResult: (didPop, result) => onBackPressed(context),
       child: Scaffold(
-        appBar: const SysAppBar(title: Text('代理设置')),
-        body: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: KazumiSpacing.md,
-            vertical: KazumiSpacing.sm,
-          ),
+        body: KazumiSettingsPageShell(
+          title: '代理设置',
+          subtitle: '配置网络代理并在启用前完成连通性测试。',
+          icon: Icons.vpn_key_rounded,
           children: [
             SettingsSectionCard(
               title: '代理',

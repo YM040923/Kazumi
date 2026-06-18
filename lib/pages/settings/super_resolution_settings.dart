@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 
@@ -39,12 +39,10 @@ class _SuperResolutionSettingsState extends State<SuperResolutionSettings> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: const SysAppBar(title: Text('超分辨率')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KazumiSpacing.md,
-          vertical: KazumiSpacing.sm,
-        ),
+      body: KazumiSettingsPageShell(
+        title: '超分辨率',
+        subtitle: '配置 Anime4K 超分策略和启用提示。',
+        icon: Icons.hd_rounded,
         children: [
           SettingsSectionCard(
             title: '超分辨率需要启用硬件解码，若启用后仍不生效，尝试切换渲染器为 gpu',

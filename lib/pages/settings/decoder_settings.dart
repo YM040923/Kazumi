@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_ce/hive.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/constants.dart';
@@ -27,30 +27,28 @@ class _DecoderSettingsState extends State<DecoderSettings> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const SysAppBar(title: Text('硬件解码器')),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: KazumiSpacing.md,
-          vertical: KazumiSpacing.sm,
-        ),
+      body: KazumiSettingsPageShell(
+        title: '硬件解码器',
+        subtitle: '选择播放器默认使用的硬件解码策略。',
+        icon: Icons.developer_board_rounded,
         children: [
           SettingsSectionCard(
             title: '选择不受支持的解码器将回退到软件解码',
             icon: Icons.developer_board_rounded,
             tiles: [
-                  for (int i = 0; i < hardwareDecodersList.entries.length; i++)
-                    _RadioListTile(
-                      title: hardwareDecodersList.entries.elementAt(i).key,
-                      subtitle: hardwareDecodersList.entries.elementAt(i).value,
-                      value: hardwareDecodersList.entries.elementAt(i).key,
-                      groupValue: selected,
-                      isLast: i == hardwareDecodersList.entries.length - 1,
-                      onChanged: (v) {
-                        setting.put(SettingBoxKey.hardwareDecoder, v);
-                        setState(() => selected = v);
-                      },
-                    ),
-                ],
+              for (int i = 0; i < hardwareDecodersList.entries.length; i++)
+                _RadioListTile(
+                  title: hardwareDecodersList.entries.elementAt(i).key,
+                  subtitle: hardwareDecodersList.entries.elementAt(i).value,
+                  value: hardwareDecodersList.entries.elementAt(i).key,
+                  groupValue: selected,
+                  isLast: i == hardwareDecodersList.entries.length - 1,
+                  onChanged: (v) {
+                    setting.put(SettingBoxKey.hardwareDecoder, v);
+                    setState(() => selected = v);
+                  },
+                ),
+            ],
           ),
         ],
       ),
@@ -84,7 +82,8 @@ class _RadioListTile extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         RadioListTile<String>(
-          contentPadding: const EdgeInsets.symmetric(horizontal: KazumiSpacing.lg),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: KazumiSpacing.lg),
           title: Text(title,
               style: TextStyle(
                 color: scheme.onSurface,
