@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/bean/card/bangumi_card.dart';
@@ -322,20 +321,23 @@ class _PopularPageState extends State<PopularPage>
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
       actions: [
-        DesktopWindowActionRail(
-          actions: [
-            IconButton(
-              tooltip: '搜索',
-              icon: const Icon(Icons.search_rounded),
-              onPressed: () => Modular.to.pushNamed('/search/'),
-            ),
-            IconButton(
-              tooltip: '观看历史',
-              icon: const Icon(Icons.history_rounded),
-              onPressed: () => Modular.to.pushNamed('/settings/history/'),
-            ),
-          ],
-          trailingSpacing: 4,
+        WindowControlInset(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: '搜索',
+                icon: const Icon(Icons.search_rounded),
+                onPressed: () => Modular.to.pushNamed('/search/'),
+              ),
+              IconButton(
+                tooltip: '观看历史',
+                icon: const Icon(Icons.history_rounded),
+                onPressed: () => Modular.to.pushNamed('/settings/history/'),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
         ),
       ],
       flexibleSpace: SafeArea(
@@ -418,7 +420,7 @@ class _PopularPageState extends State<PopularPage>
                 selectedIndex: selectedIndex,
                 loading: loading,
                 isWide: isWide,
-                onOpenDetails: () => _openDetails(selectedItem),
+                onOpenDetails: _openDetails,
                 onRefresh: _refreshCurrentView,
                 onSelect: _selectSpotlightItem,
               ),
@@ -633,7 +635,7 @@ class _SpotlightSurface extends StatelessWidget {
   final int selectedIndex;
   final bool loading;
   final bool isWide;
-  final VoidCallback onOpenDetails;
+  final ValueChanged<BangumiItem> onOpenDetails;
   final VoidCallback onRefresh;
   final ValueChanged<int> onSelect;
 
@@ -695,7 +697,12 @@ class _SpotlightSurface extends StatelessWidget {
   Widget _buildWide(BuildContext context) {
     return Row(
       children: [
-        _FeaturedPoster(item: item, width: 176, height: double.infinity),
+        _FeaturedPoster(
+          item: item,
+          width: 176,
+          height: double.infinity,
+          onTap: () => onOpenDetails(item),
+        ),
         const SizedBox(width: 22),
         Expanded(
           child: Column(
@@ -705,7 +712,7 @@ class _SpotlightSurface extends StatelessWidget {
                 child: _SpotlightCopy(
                   item: item,
                   loading: loading,
-                  onOpenDetails: onOpenDetails,
+                  onOpenDetails: () => onOpenDetails(item),
                   onRefresh: onRefresh,
                 ),
               ),
@@ -713,6 +720,7 @@ class _SpotlightSurface extends StatelessWidget {
               _SpotlightThumbnailRail(
                 items: items,
                 selectedIndex: selectedIndex,
+                onOpenDetails: onOpenDetails,
                 onSelect: onSelect,
               ),
             ],
@@ -730,13 +738,18 @@ class _SpotlightSurface extends StatelessWidget {
           height: 210,
           child: Row(
             children: [
-              _FeaturedPoster(item: item, width: 132, height: 210),
+              _FeaturedPoster(
+                item: item,
+                width: 132,
+                height: 210,
+                onTap: () => onOpenDetails(item),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: _SpotlightCopy(
                   item: item,
                   loading: loading,
-                  onOpenDetails: onOpenDetails,
+                  onOpenDetails: () => onOpenDetails(item),
                   onRefresh: onRefresh,
                   compact: true,
                 ),
@@ -748,6 +761,7 @@ class _SpotlightSurface extends StatelessWidget {
         _SpotlightThumbnailRail(
           items: items,
           selectedIndex: selectedIndex,
+          onOpenDetails: onOpenDetails,
           onSelect: onSelect,
         ),
       ],
@@ -796,89 +810,98 @@ class _SpotlightCopy extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final title = _bangumiTitle(item);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _StatusPill(
-          icon: Icons.auto_awesome_rounded,
-          label: '精选推荐',
-          color: scheme.primary,
-        ),
-        const SizedBox(height: 14),
-        Text(
-          title,
-          maxLines: compact ? 2 : 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontSize: compact ? 24 : 30,
-            fontWeight: FontWeight.w900,
-            height: 1.05,
-            letterSpacing: 0,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tight = constraints.maxHeight < (compact ? 210 : 214);
+        final summary = item.summary.trim().isNotEmpty
+            ? item.summary.trim()
+            : '暂时没有简介，可以先进入详情查看播放源和更多资料。';
+
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _MetaPill(
-              icon: Icons.star_rounded,
-              label: item.ratingScore > 0
-                  ? '评分 ${item.ratingScore.toStringAsFixed(1)}'
-                  : '暂无评分',
+            _StatusPill(
+              icon: Icons.auto_awesome_rounded,
+              label: '精选推荐',
+              color: scheme.primary,
             ),
-            if (item.rank > 0)
-              _MetaPill(
-                icon: Icons.emoji_events_rounded,
-                label: 'Bangumi #${item.rank}',
+            SizedBox(height: tight ? 8 : 14),
+            Text(
+              title,
+              maxLines: compact ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: tight ? (compact ? 22 : 26) : (compact ? 24 : 30),
+                fontWeight: FontWeight.w900,
+                height: 1.05,
+                letterSpacing: 0,
               ),
-            if (item.airDate.isNotEmpty)
-              _MetaPill(
-                icon: Icons.calendar_month_rounded,
-                label: item.airDate,
+            ),
+            SizedBox(height: tight ? 8 : 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                _MetaPill(
+                  icon: Icons.star_rounded,
+                  label: item.ratingScore > 0
+                      ? '评分 ${item.ratingScore.toStringAsFixed(1)}'
+                      : '暂无评分',
+                ),
+                if (item.rank > 0)
+                  _MetaPill(
+                    icon: Icons.emoji_events_rounded,
+                    label: 'Bangumi #${item.rank}',
+                  ),
+                if (item.airDate.isNotEmpty)
+                  _MetaPill(
+                    icon: Icons.calendar_month_rounded,
+                    label: item.airDate,
+                  ),
+              ],
+            ),
+            SizedBox(height: tight ? 8 : 12),
+            Flexible(
+              child: Text(
+                summary,
+                maxLines: tight ? (compact ? 2 : 1) : (compact ? 3 : 2),
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: tight ? 13 : 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.38,
+                ),
               ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Text(
-          item.summary.trim().isNotEmpty
-              ? item.summary.trim()
-              : '暂时没有简介，可以先进入详情查看播放源和更多资料。',
-          maxLines: compact ? 3 : 4,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: scheme.onSurfaceVariant,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            height: 1.45,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FilledButton.icon(
-              onPressed: onOpenDetails,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('打开详情'),
             ),
-            const SizedBox(width: 10),
-            IconButton.filledTonal(
-              tooltip: '换一组精选',
-              onPressed: loading ? null : onRefresh,
-              icon: loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh_rounded),
+            SizedBox(height: tight ? 10 : 14),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FilledButton.icon(
+                  onPressed: onOpenDetails,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('打开详情'),
+                ),
+                const SizedBox(width: 10),
+                IconButton.filledTonal(
+                  tooltip: '换一组精选',
+                  onPressed: loading ? null : onRefresh,
+                  icon: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -887,11 +910,13 @@ class _SpotlightThumbnailRail extends StatelessWidget {
   const _SpotlightThumbnailRail({
     required this.items,
     required this.selectedIndex,
+    required this.onOpenDetails,
     required this.onSelect,
   });
 
   final List<BangumiItem> items;
   final int selectedIndex;
+  final ValueChanged<BangumiItem> onOpenDetails;
   final ValueChanged<int> onSelect;
 
   @override
@@ -919,7 +944,12 @@ class _SpotlightThumbnailRail extends StatelessWidget {
               child: _SpotlightThumbnailButton(
                 item: items[index],
                 selected: index == selectedIndex,
-                onTap: () => onSelect(index),
+                onHover: (hovered) {
+                  if (hovered && index != selectedIndex) {
+                    onSelect(index);
+                  }
+                },
+                onOpenDetails: () => onOpenDetails(items[index]),
               ),
             ),
           ),
@@ -933,12 +963,14 @@ class _SpotlightThumbnailButton extends StatelessWidget {
   const _SpotlightThumbnailButton({
     required this.item,
     required this.selected,
-    required this.onTap,
+    required this.onHover,
+    required this.onOpenDetails,
   });
 
   final BangumiItem item;
   final bool selected;
-  final VoidCallback onTap;
+  final ValueChanged<bool> onHover;
+  final VoidCallback onOpenDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -948,7 +980,8 @@ class _SpotlightThumbnailButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+        onHover: onHover,
+        onTap: onOpenDetails,
         child: AnimatedContainer(
           duration: KazumiDurations.fast,
           decoration: BoxDecoration(
@@ -1020,49 +1053,57 @@ class _FeaturedPoster extends StatelessWidget {
     required this.item,
     required this.width,
     required this.height,
+    required this.onTap,
   });
 
   final BangumiItem item;
   final double width;
   final double height;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Hero(
-      tag: item.id,
-      flightShuttleBuilder: NetworkImgLayer.heroFlightShuttleBuilder,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.24),
-              blurRadius: 22,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _BangumiPosterImage(item: item, width: width, height: height),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.28),
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Hero(
+          tag: item.id,
+          flightShuttleBuilder: NetworkImgLayer.heroFlightShuttleBuilder,
+          child: Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.24),
+                  blurRadius: 22,
+                  offset: const Offset(0, 14),
                 ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _BangumiPosterImage(item: item, width: width, height: height),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.28),
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

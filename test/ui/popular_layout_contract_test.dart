@@ -85,4 +85,40 @@ void main() {
     expect(source, isNot(contains('CustomDropdownMenu')));
     expect(source, isNot(contains('showTagMenu')));
   });
+
+  test('discover spotlight controls avoid overflow and open details', () {
+    final source =
+        File('lib/pages/popular/popular_page.dart').readAsStringSync();
+
+    final appBarSource = source.substring(
+      source.indexOf('Widget _buildMediaAppBar'),
+      source.indexOf('Widget _buildSpotlightBoard'),
+    );
+    expect(appBarSource, isNot(contains('DesktopWindowActionRail')));
+    expect(appBarSource, isNot(contains('DesktopWindowControls')));
+    expect(appBarSource, contains('WindowControlInset'));
+
+    final featuredPosterSource = source.substring(
+      source.indexOf('class _FeaturedPoster'),
+      source.indexOf('class _BangumiPosterImage'),
+    );
+    expect(featuredPosterSource, contains('required this.onTap'));
+    expect(featuredPosterSource, contains('onTap: onTap'));
+
+    final thumbnailSource = source.substring(
+      source.indexOf('class _SpotlightThumbnailButton'),
+      source.indexOf('class _FeaturedPoster'),
+    );
+    expect(thumbnailSource, contains('required this.onOpenDetails'));
+    expect(thumbnailSource, contains('onTap: onOpenDetails'));
+    expect(thumbnailSource, contains('onHover:'));
+
+    final copySource = source.substring(
+      source.indexOf('class _SpotlightCopy'),
+      source.indexOf('class _SpotlightThumbnailRail'),
+    );
+    expect(copySource, contains('LayoutBuilder'));
+    expect(copySource, contains('Flexible('));
+    expect(copySource, contains('final tight'));
+  });
 }
