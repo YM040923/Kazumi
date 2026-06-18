@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
 import 'package:kazumi/utils/logger.dart';
@@ -112,14 +114,16 @@ class _PluginTestPageState extends State<PluginTestPage> {
           .node as Element);
       return _itemHtmlMap[index] = node.outerHtml;
     } catch (e) {
-      KazumiLogger().e('PluginTest: failed to parse HTML item ${index + 1}', error: e);
+      KazumiLogger()
+          .e('PluginTest: failed to parse HTML item ${index + 1}', error: e);
       return "解析失败：$e";
     }
   }
 
   void _toggleItemHtml(int index) {
-    if (_showItemHtmlIdx == index)
+    if (_showItemHtmlIdx == index) {
       return setState(() => _showItemHtmlIdx = null);
+    }
     setState(() => isTesting = true);
     _parseItemHtml(index);
     setState(() {
@@ -161,58 +165,61 @@ class _PluginTestPageState extends State<PluginTestPage> {
       canPop: true,
       onPopInvokedWithResult: (didPop, _) => !didPop ? onBackPressed() : null,
       child: Scaffold(
-        appBar: SysAppBar(
-          title: Text('${plugin.name} 测试'),
-          actions: [
-            IconButton(
-              onPressed: isTesting ? null : startTest,
-              icon: const Icon(Icons.bug_report_outlined),
-              tooltip: '开始测试',
+        body: KazumiSettingsPageShell(
+          title: '${plugin.name} 测试',
+          subtitle: '验证搜索请求、搜索解析和章节列表是否可用。',
+          icon: Icons.bug_report_outlined,
+          actions: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton.filledTonal(
+                onPressed: resetState,
+                icon: const Icon(Icons.refresh),
+                tooltip: '重置',
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: isTesting ? null : startTest,
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('开始测试'),
+              ),
+            ],
+          ),
+          children: [
+            KazumiGlassSurface(
+              borderRadius: KazumiRadius.cardBorder,
+              blurSigma: 14,
+              opacity:
+                  Theme.of(context).brightness == Brightness.dark ? 0.64 : 0.76,
+              padding: const EdgeInsets.all(KazumiSpacing.lg),
+              child: _buildKeywordInput(theme),
             ),
-            IconButton(
-              onPressed: resetState,
-              icon: const Icon(Icons.refresh),
-              tooltip: '重置',
+            _h12,
+            _buildErrorWidget(theme),
+            _buildExpansionTile(
+              theme: theme,
+              title: '1. 搜索请求测试',
+              subtitle: _getSearchSubtitle(),
+              expanded: false,
+              child: _buildSearchContent(theme),
+            ),
+            _h12,
+            _buildExpansionTile(
+              theme: theme,
+              title: '2. 搜索解析测试',
+              subtitle: _getParseSubtitle(),
+              expanded: false,
+              child: _buildParseContent(theme),
+            ),
+            _h12,
+            _buildExpansionTile(
+              theme: theme,
+              title: '3. 章节列表测试',
+              subtitle: _getChapterSubtitle(),
+              expanded: _hasSearchData,
+              child: _buildChapterContent(theme),
             ),
           ],
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildKeywordInput(theme),
-                    _h12,
-                    _buildErrorWidget(theme),
-                    _buildExpansionTile(
-                      theme: theme,
-                      title: '1. 搜索请求测试',
-                      subtitle: _getSearchSubtitle(),
-                      expanded: false,
-                      child: _buildSearchContent(theme),
-                    ),
-                    _h12,
-                    _buildExpansionTile(
-                      theme: theme,
-                      title: '2. 搜索解析测试',
-                      subtitle: _getParseSubtitle(),
-                      expanded: false,
-                      child: _buildParseContent(theme),
-                    ),
-                    _h12,
-                    _buildExpansionTile(
-                      theme: theme,
-                      title: '3. 章节列表测试',
-                      subtitle: _getChapterSubtitle(),
-                      expanded: _hasSearchData,
-                      child: _buildChapterContent(theme),
-                    ),
-                  ]),
-            ),
-          ),
         ),
       ),
     );
@@ -225,16 +232,37 @@ class _PluginTestPageState extends State<PluginTestPage> {
     required bool expanded,
     required Widget child,
   }) {
-    return ExpansionTile(
-      title: Text(title, style: theme.textTheme.titleMedium),
-      subtitle: Text(subtitle,
+    return KazumiGlassSurface(
+      borderRadius: KazumiRadius.cardBorder,
+      blurSigma: 14,
+      opacity: theme.brightness == Brightness.dark ? 0.64 : 0.76,
+      child: ExpansionTile(
+        title: Text(title, style: theme.textTheme.titleMedium),
+        subtitle: Text(
+          subtitle,
           style: TextStyle(
-              fontSize: 12.0, color: _getSubtitleColor(subtitle, theme))),
-      initiallyExpanded: expanded,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      iconColor: theme.getCoreColor(CoreColorType.success),
-      collapsedIconColor: theme.getCoreColor(CoreColorType.waiting),
-      children: [_h8, child, _h8],
+            fontSize: 12.0,
+            color: _getSubtitleColor(subtitle, theme),
+          ),
+        ),
+        initiallyExpanded: expanded,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        collapsedShape:
+            const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        iconColor: theme.getCoreColor(CoreColorType.success),
+        collapsedIconColor: theme.getCoreColor(CoreColorType.waiting),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KazumiSpacing.lg,
+              0,
+              KazumiSpacing.lg,
+              KazumiSpacing.lg,
+            ),
+            child: child,
+          ),
+        ],
+      ),
     );
   }
 
@@ -282,7 +310,7 @@ class _PluginTestPageState extends State<PluginTestPage> {
                       style: TextButton.styleFrom(
                           backgroundColor: theme
                               .getCoreColor(CoreColorType.error)
-                              .withOpacity(0.1)),
+                              .withValues(alpha: 0.1)),
                       child: Text('重试测试',
                           style: TextStyle(
                               color: theme.colorScheme.onErrorContainer)),

@@ -7,7 +7,9 @@ import 'package:kazumi/utils/utils.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/widget/settings_page_shell.dart';
+import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 
 class PluginViewPage extends StatefulWidget {
   const PluginViewPage({super.key});
@@ -147,206 +149,202 @@ class _PluginViewPageState extends State<PluginViewPage> {
         onBackPressed(context);
       },
       child: Scaffold(
-        appBar: SysAppBar(
-          title: isMultiSelectMode
-              ? Text('已选择 ${selectedNames.length} 项')
-              : const Text('规则管理'),
-          leading: isMultiSelectMode
-              ? IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    setState(() {
-                      isMultiSelectMode = false;
-                      selectedNames.clear();
-                    });
-                  },
-                )
-              : null,
-          actions: [
-            if (isMultiSelectMode) ...[
-              IconButton(
-                onPressed: selectedNames.isEmpty
-                    ? null
-                    : () {
-                        KazumiDialog.show(
-                          builder: (context) => AlertDialog(
-                            title: const Text('删除规则'),
-                            content:
-                                Text('确定要删除选中的 ${selectedNames.length} 条规则吗？'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => KazumiDialog.dismiss(),
-                                child: Text(
-                                  '取消',
-                                  style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  pluginsController
-                                      .removePlugins(selectedNames);
-                                  setState(() {
-                                    isMultiSelectMode = false;
-                                    selectedNames.clear();
-                                  });
-                                  KazumiDialog.dismiss();
-                                },
-                                child: const Text('删除'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                icon: const Icon(Icons.delete),
-              ),
-            ] else ...[
-              IconButton(
-                onPressed: () {
-                  _handleUpdate();
-                },
-                tooltip: '更新全部',
-                icon: const Icon(Icons.update),
-              ),
-              IconButton(
-                onPressed: () {
-                  _handleAdd();
-                },
-                tooltip: '添加规则',
-                icon: const Icon(Icons.add),
-              )
-            ],
-          ],
+        body: Observer(
+          builder: (context) {
+            final count = pluginsController.pluginList.length;
+
+            return KazumiSettingsPageShell(
+              title:
+                  isMultiSelectMode ? '已选择 ${selectedNames.length} 项' : '规则管理',
+              subtitle:
+                  count == 0 ? '添加规则后才能搜索和播放视频源。' : '共 $count 条本地规则，可拖拽调整优先级。',
+              icon: Icons.extension_rounded,
+              actions: _buildHeaderActions(),
+              children: [
+                if (pluginsController.pluginList.isEmpty)
+                  const _PluginEmptyState()
+                else
+                  ReorderableListView.builder(
+                    buildDefaultDragHandles: false,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    proxyDecorator: (child, index, animation) {
+                      return Material(
+                        elevation: 0,
+                        color: Colors.transparent,
+                        child: child,
+                      );
+                    },
+                    onReorder: (int oldIndex, int newIndex) {
+                      pluginsController.onReorder(oldIndex, newIndex);
+                    },
+                    itemCount: pluginsController.pluginList.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        key: ValueKey(pluginsController.pluginList[index].name),
+                        padding: EdgeInsets.only(
+                          bottom:
+                              index == pluginsController.pluginList.length - 1
+                                  ? 0
+                                  : KazumiSpacing.sm,
+                        ),
+                        child: _buildPluginCard(index),
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
         ),
-        body: Observer(builder: (context) {
-          return pluginsController.pluginList.isEmpty
-              ? const Center(
-                  child: Text('啊咧（⊙.⊙） 没有可用规则的说'),
-                )
-              : Builder(builder: (context) {
-                  return ReorderableListView.builder(
-                      buildDefaultDragHandles: false,
-                      proxyDecorator: (child, index, animation) {
-                        return Material(
-                          elevation: 0,
-                          color: Colors.transparent,
-                          child: child,
-                        );
-                      },
-                      onReorder: (int oldIndex, int newIndex) {
-                        pluginsController.onReorder(oldIndex, newIndex);
-                      },
-                      itemCount: pluginsController.pluginList.length,
-                      itemBuilder: (context, index) {
-                        var plugin = pluginsController.pluginList[index];
-                        bool canUpdate =
-                            pluginsController.pluginUpdateStatus(plugin) ==
-                                'updatable';
-                        return Card(
-                            key: ValueKey(index),
-                            margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                            child: ListTile(
-                              trailing: pluginCardTrailing(index),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              onLongPress: () {
-                                if (!isMultiSelectMode) {
-                                  setState(() {
-                                    isMultiSelectMode = true;
-                                    selectedNames.add(plugin.name);
-                                  });
-                                }
-                              },
-                              onTap: () {
-                                if (isMultiSelectMode) {
-                                  setState(() {
-                                    if (selectedNames.contains(plugin.name)) {
-                                      selectedNames.remove(plugin.name);
-                                      if (selectedNames.isEmpty) {
-                                        isMultiSelectMode = false;
-                                      }
-                                    } else {
-                                      selectedNames.add(plugin.name);
-                                    }
-                                  });
-                                }
-                              },
-                              selected: selectedNames.contains(plugin.name),
-                              selectedTileColor: Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer,
-                              title: Text(
-                                plugin.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Version: ${plugin.version}',
-                                        style:
-                                            const TextStyle(color: Colors.grey),
-                                      ),
-                                      if (canUpdate) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .errorContainer,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            '可更新',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onErrorContainer,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      if (pluginsController.validityTracker
-                                          .isSearchValid(plugin.name)) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .tertiaryContainer,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            '搜索有效',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onTertiaryContainer,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ));
-                      });
-                });
-        }),
+      ),
+    );
+  }
+
+  Widget _buildHeaderActions() {
+    if (isMultiSelectMode) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton.filledTonal(
+            onPressed: () {
+              setState(() {
+                isMultiSelectMode = false;
+                selectedNames.clear();
+              });
+            },
+            tooltip: '取消选择',
+            icon: const Icon(Icons.close),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            onPressed: selectedNames.isEmpty ? null : _confirmDeleteSelected,
+            tooltip: '删除选中规则',
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.filledTonal(
+          onPressed: _handleUpdate,
+          tooltip: '更新全部',
+          icon: const Icon(Icons.update),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _handleAdd,
+          icon: const Icon(Icons.add),
+          label: const Text('添加'),
+        ),
+      ],
+    );
+  }
+
+  void _confirmDeleteSelected() {
+    KazumiDialog.show(
+      builder: (context) => AlertDialog(
+        title: const Text('删除规则'),
+        content: Text('确定要删除选中的 ${selectedNames.length} 条规则吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => KazumiDialog.dismiss(),
+            child: Text(
+              '取消',
+              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              pluginsController.removePlugins(selectedNames);
+              setState(() {
+                isMultiSelectMode = false;
+                selectedNames.clear();
+              });
+              KazumiDialog.dismiss();
+            },
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPluginCard(int index) {
+    final plugin = pluginsController.pluginList[index];
+    final canUpdate =
+        pluginsController.pluginUpdateStatus(plugin) == 'updatable';
+    final scheme = Theme.of(context).colorScheme;
+
+    return KazumiGlassSurface(
+      borderRadius: KazumiRadius.cardBorder,
+      blurSigma: 14,
+      opacity: Theme.of(context).brightness == Brightness.dark ? 0.64 : 0.76,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: KazumiSpacing.lg,
+          vertical: KazumiSpacing.xs,
+        ),
+        trailing: pluginCardTrailing(index),
+        onLongPress: () {
+          if (!isMultiSelectMode) {
+            setState(() {
+              isMultiSelectMode = true;
+              selectedNames.add(plugin.name);
+            });
+          }
+        },
+        onTap: () {
+          if (isMultiSelectMode) {
+            setState(() {
+              if (selectedNames.contains(plugin.name)) {
+                selectedNames.remove(plugin.name);
+                if (selectedNames.isEmpty) {
+                  isMultiSelectMode = false;
+                }
+              } else {
+                selectedNames.add(plugin.name);
+              }
+            });
+          }
+        },
+        selected: selectedNames.contains(plugin.name),
+        selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.36),
+        title: Text(
+          plugin.name,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Version: ${plugin.version}',
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              if (canUpdate)
+                _StatusBadge(
+                  text: '可更新',
+                  background: scheme.errorContainer,
+                  foreground: scheme.onErrorContainer,
+                ),
+              if (pluginsController.validityTracker.isSearchValid(plugin.name))
+                _StatusBadge(
+                  text: '搜索有效',
+                  background: scheme.tertiaryContainer,
+                  foreground: scheme.onTertiaryContainer,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -548,6 +546,76 @@ class _PluginViewPageState extends State<PluginViewPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.text,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String text;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _PluginEmptyState extends StatelessWidget {
+  const _PluginEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return KazumiGlassSurface(
+      borderRadius: KazumiRadius.panelBorder,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 42),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.extension_off_rounded,
+            size: 56,
+            color: scheme.primary.withValues(alpha: 0.72),
+          ),
+          const SizedBox(height: KazumiSpacing.md),
+          Text(
+            '没有可用规则',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: KazumiSpacing.xs),
+          Text(
+            '从规则仓库导入，或新建一条规则。',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
