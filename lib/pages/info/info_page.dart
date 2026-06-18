@@ -71,12 +71,12 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
   double _detailHeaderHeight(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     if (width >= LayoutBreakpoint.medium['width']!) {
-      return 386;
+      return 430;
     }
     if (width >= LayoutBreakpoint.compact['width']!) {
-      return 352;
+      return 388;
     }
-    return 314;
+    return 338;
   }
 
   bool _needsBangumiInfoRefresh(BangumiItem bangumiItem) {
@@ -640,8 +640,8 @@ class _InfoHeaderBackground extends StatelessWidget {
   });
 
   static const double _downsample = 0.5;
-  static const double _blurSigma = 15.0;
-  static const double _opacity = 0.4;
+  static const double _blurSigma = 11.0;
+  static const double _opacity = 0.5;
   static const double _edgeBleed = 32.0;
   static const double _bottomFeatherHeight = 48.0;
 

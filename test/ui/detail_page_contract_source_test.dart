@@ -25,18 +25,22 @@ void main() {
     expect(tabViewSource, isNot(contains('_InfoOverviewCard')));
   });
 
-  test('detail header uses a media control room composition', () {
+  test('detail header uses an editorial shelf composition', () {
     final infoCardSource =
         File('lib/bean/card/bangumi_info_card.dart').readAsStringSync();
 
-    expect(infoCardSource, contains('_MediaControlPanel'));
+    expect(infoCardSource, contains('_EditorialShelfPanel'));
     expect(infoCardSource, contains('_PosterFrame'));
+    expect(infoCardSource, contains('_SynopsisPanel'));
     expect(infoCardSource, contains('_MetaPill'));
     expect(infoCardSource, contains('_TagStrip'));
+    expect(infoCardSource, contains('_RatingShelf'));
     expect(infoCardSource, contains('CollectButton.extend'));
     expect(infoCardSource, contains('评分'));
     expect(infoCardSource, contains('首播'));
     expect(infoCardSource, contains('排名'));
+    expect(infoCardSource, isNot(contains('_MediaControlPanel')));
+    expect(infoCardSource, isNot(contains('_RatingConsole')));
     expect(infoCardSource, isNot(contains('letterSpacing: -0.5')));
   });
 

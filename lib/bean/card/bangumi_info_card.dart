@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:kazumi/bean/card/network_img_layer.dart';
 import 'package:kazumi/bean/widget/collect_button.dart';
-import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/bangumi/bangumi_tag.dart';
 import 'package:kazumi/utils/constants.dart';
@@ -42,7 +41,7 @@ class _BangumiInfoCardVState extends State<BangumiInfoCardV> {
           isWide ? 28 : 16,
           18,
         ),
-        child: _MediaControlPanel(
+        child: _EditorialShelfPanel(
           bangumiItem: widget.bangumiItem,
           showRating: widget.showRating && !widget.isLoading,
           touchedIndex: touchedIndex,
@@ -57,8 +56,8 @@ class _BangumiInfoCardVState extends State<BangumiInfoCardV> {
   }
 }
 
-class _MediaControlPanel extends StatelessWidget {
-  const _MediaControlPanel({
+class _EditorialShelfPanel extends StatelessWidget {
+  const _EditorialShelfPanel({
     required this.bangumiItem,
     required this.showRating,
     required this.touchedIndex,
@@ -119,7 +118,7 @@ class _MediaControlPanel extends StatelessWidget {
         end: Alignment.bottomRight,
         colors: [
           scheme.primary.withValues(alpha: isDark ? 0.13 : 0.10),
-          scheme.surfaceContainerLow.withValues(alpha: isDark ? 0.84 : 0.94),
+          scheme.surfaceContainerLow.withValues(alpha: isDark ? 0.82 : 0.92),
           scheme.surfaceContainerHighest
               .withValues(alpha: isDark ? 0.58 : 0.72),
         ],
@@ -132,21 +131,36 @@ class _MediaControlPanel extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PosterFrame(bangumiItem: bangumiItem, width: 182),
-        const SizedBox(width: 22),
+        _PosterFrame(bangumiItem: bangumiItem, width: showChart ? 214 : 188),
+        const SizedBox(width: 24),
         Expanded(
-          flex: showChart ? 5 : 7,
-          child: _DetailColumn(bangumiItem: bangumiItem),
+          flex: 7,
+          child: _DetailColumn(
+            bangumiItem: bangumiItem,
+            showSynopsis: !showChart,
+          ),
         ),
         if (showChart) ...[
-          const SizedBox(width: 20),
+          const SizedBox(width: 22),
           SizedBox(
-            width: 238,
-            child: _RatingConsole(
-              bangumiItem: bangumiItem,
-              touchedIndex: touchedIndex,
-              onTouchRating: onTouchRating,
-              showRating: showRating,
+            width: 300,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _SynopsisPanel(summary: bangumiItem.summary),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 126,
+                  child: _RatingShelf(
+                    bangumiItem: bangumiItem,
+                    touchedIndex: touchedIndex,
+                    onTouchRating: onTouchRating,
+                    showRating: showRating,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -155,16 +169,26 @@ class _MediaControlPanel extends StatelessWidget {
   }
 
   Widget _compactLayout(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PosterFrame(bangumiItem: bangumiItem, width: 122),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _DetailColumn(
-            bangumiItem: bangumiItem,
-            compact: true,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PosterFrame(bangumiItem: bangumiItem, width: 126),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _DetailColumn(
+                bangumiItem: bangumiItem,
+                compact: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _SynopsisPanel(
+          summary: bangumiItem.summary,
+          compact: true,
         ),
       ],
     );
@@ -223,10 +247,12 @@ class _DetailColumn extends StatelessWidget {
   const _DetailColumn({
     required this.bangumiItem,
     this.compact = false,
+    this.showSynopsis = false,
   });
 
   final BangumiItem bangumiItem;
   final bool compact;
+  final bool showSynopsis;
 
   @override
   Widget build(BuildContext context) {
@@ -295,18 +321,11 @@ class _DetailColumn extends StatelessWidget {
           itemSize: compact ? 15 : 17,
           unratedColor: scheme.outlineVariant.withValues(alpha: 0.42),
         ),
-        if (!compact) ...[
+        if (showSynopsis) ...[
           const SizedBox(height: 14),
-          Text(
-            summary.isEmpty ? '暂无简介' : summary,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.46,
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
+          _SynopsisPanel(summary: summary),
+        ],
+        if (!compact) ...[
           const Spacer(),
           _TagStrip(tags: bangumiItem.tags),
           const SizedBox(height: 12),
@@ -317,6 +336,59 @@ class _DetailColumn extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _SynopsisPanel extends StatelessWidget {
+  const _SynopsisPanel({
+    required this.summary,
+    this.compact = false,
+  });
+
+  final String summary;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final normalizedSummary = summary.trim();
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(compact ? 14 : 18),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 12 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+          children: [
+            Text(
+              '简介',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              normalizedSummary.isEmpty ? '暂无简介' : normalizedSummary,
+              maxLines: compact ? 3 : 7,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.48,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -427,8 +499,8 @@ class _TagStrip extends StatelessWidget {
   }
 }
 
-class _RatingConsole extends StatelessWidget {
-  const _RatingConsole({
+class _RatingShelf extends StatelessWidget {
+  const _RatingShelf({
     required this.bangumiItem,
     required this.touchedIndex,
     required this.onTouchRating,
