@@ -1,0 +1,223 @@
+import 'package:flutter/material.dart';
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
+import 'package:kazumi/utils/storage.dart';
+import 'package:kazumi/utils/utils.dart';
+import 'package:window_manager/window_manager.dart';
+
+class WindowControlMetrics {
+  const WindowControlMetrics._();
+
+  static const double buttonWidth = 46;
+  static const double controlHeight = 48;
+  static const double controlWidth = buttonWidth * 3;
+}
+
+class DesktopWindowActionRail extends StatelessWidget {
+  const DesktopWindowActionRail({
+    super.key,
+    this.actions = const [],
+    this.trailingSpacing = 0,
+  });
+
+  final List<Widget> actions;
+  final double trailingSpacing;
+
+  bool get _showNativeWindowButton {
+    return GStorage.setting
+        .get(SettingBoxKey.showWindowButton, defaultValue: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showCustomControls = Utils.isDesktop() && !_showNativeWindowButton;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ...actions,
+        if (showCustomControls) const DesktopWindowControls(trailingSpacing: 0),
+        if (trailingSpacing > 0) SizedBox(width: trailingSpacing),
+      ],
+    );
+  }
+}
+
+class DesktopWindowControls extends StatelessWidget {
+  const DesktopWindowControls({
+    super.key,
+    this.trailingSpacing = 8,
+  });
+
+  final double trailingSpacing;
+
+  Future<void> _toggleMaximizeWindow() async {
+    if (await windowManager.isMaximized()) {
+      await windowManager.unmaximize();
+      return;
+    }
+    await windowManager.maximize();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Utils.isDesktop()) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _windowButton(
+          tooltip: '最小化',
+          onPressed: () => windowManager.minimize(),
+          icon: const _CenteredMinimizeIcon(),
+        ),
+        _windowButton(
+          tooltip: '最大化/还原',
+          onPressed: _toggleMaximizeWindow,
+          icon: const Icon(Icons.crop_square_rounded),
+        ),
+        _windowButton(
+          tooltip: '关闭',
+          onPressed: () => windowManager.close(),
+          icon: const Icon(Icons.close_rounded),
+        ),
+        if (trailingSpacing > 0) SizedBox(width: trailingSpacing),
+      ],
+    );
+  }
+
+  Widget _windowButton({
+    required String tooltip,
+    required VoidCallback onPressed,
+    required Widget icon,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      constraints: const BoxConstraints.tightFor(
+        width: WindowControlMetrics.buttonWidth,
+        height: WindowControlMetrics.controlHeight,
+      ),
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      icon: icon,
+    );
+  }
+}
+
+class DesktopWindowControlsOverlay extends StatelessWidget {
+  const DesktopWindowControlsOverlay({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Utils.isDesktop()) {
+      return child;
+    }
+
+    return Stack(
+      children: [
+        child,
+        const Positioned(
+          top: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            left: false,
+            child: SizedBox(
+              width: WindowControlMetrics.controlWidth,
+              height: WindowControlMetrics.controlHeight,
+              child: _OverlayWindowControls(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OverlayWindowControls extends StatelessWidget {
+  const _OverlayWindowControls();
+
+  Future<void> _toggleMaximizeWindow() async {
+    if (await windowManager.isMaximized()) {
+      await windowManager.unmaximize();
+      return;
+    }
+    await windowManager.maximize();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showWindowButton = GStorage.setting
+        .get(SettingBoxKey.showWindowButton, defaultValue: false);
+    if (showWindowButton) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _windowButton(
+          context: context,
+          onPressed: () => windowManager.minimize(),
+          icon: const _CenteredMinimizeIcon(),
+        ),
+        _windowButton(
+          context: context,
+          onPressed: _toggleMaximizeWindow,
+          icon: const Icon(Icons.crop_square_rounded),
+        ),
+        _windowButton(
+          context: context,
+          onPressed: () => windowManager.close(),
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _windowButton({
+    required BuildContext context,
+    required VoidCallback onPressed,
+    required Widget icon,
+  }) {
+    return IconButton(
+      constraints: const BoxConstraints.tightFor(
+        width: WindowControlMetrics.buttonWidth,
+        height: WindowControlMetrics.controlHeight,
+      ),
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      icon: icon,
+    );
+  }
+}
+
+class _CenteredMinimizeIcon extends StatelessWidget {
+  const _CenteredMinimizeIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = IconTheme.of(context).color;
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: Center(
+        child: Container(
+          width: 16,
+          height: 2,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
+    );
+  }
+}
