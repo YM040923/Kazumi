@@ -47,10 +47,7 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
   late TabController infoTabController;
   late bool showRating;
 
-  bool commentsIsLoading = false;
   bool charactersIsLoading = false;
-  bool commentsQueryTimeout = false;
-  bool commentsIsEmpty = false;
   bool charactersQueryTimeout = false;
   bool charactersIsEmpty = false;
   bool staffIsLoading = false;
@@ -134,36 +131,6 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> loadMoreComments({int offset = 0}) async {
-    if (commentsIsLoading) return;
-    setState(() {
-      commentsIsLoading = true;
-      commentsQueryTimeout = false;
-      commentsIsEmpty = false;
-    });
-    try {
-      await infoController.queryBangumiCommentsByID(
-          infoController.bangumiItem.id,
-          offset: offset);
-      if (mounted) {
-        setState(() {
-          commentsIsLoading = false;
-          if (infoController.commentsList.isEmpty) {
-            commentsIsEmpty = true;
-          }
-        });
-      }
-    } catch (e) {
-      KazumiLogger().e('InfoPage: failed to load comments', error: e);
-      if (mounted) {
-        setState(() {
-          commentsIsLoading = false;
-          commentsQueryTimeout = true;
-        });
-      }
-    }
-  }
-
   History? _latestPlayableHistoryForBangumi() {
     final targetId = infoController.bangumiItem.id;
     final histories = historyController.histories.toList()
@@ -220,8 +187,9 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
       final loadedRoads = videoPageController.roadList.length;
       final progress = history.progresses[history.lastWatchEpisode];
       final preferredRoad = progress?.road ?? 0;
-      final boundedRoad =
-          loadedRoads == 0 ? 0 : preferredRoad.clamp(0, loadedRoads - 1).toInt();
+      final boundedRoad = loadedRoads == 0
+          ? 0
+          : preferredRoad.clamp(0, loadedRoads - 1).toInt();
       final preferredEpisode = progress?.episode ?? history.lastWatchEpisode;
       final boundedEpisode = loadedRoads == 0
           ? 1
@@ -254,12 +222,13 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
     if (_episodeSourceSearchOpenedForCurrentSelection) return;
     _episodeSourceSearchOpenedForCurrentSelection = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || infoTabController.index != 2) return;
+      if (!mounted || infoTabController.index != 0) return;
       _showSourceSheet(context);
     });
   }
 
   void _showSourceSheet(BuildContext context) {
+    _episodeSourceSearchOpenedForCurrentSelection = true;
     showModalBottomSheet(
       isScrollControlled: true,
       constraints: BoxConstraints(
@@ -295,7 +264,8 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
       KazumiDialog.showToast(message: '选集不可用，请重新选择播放源');
       return;
     }
-    if (episode < 1 || episode > videoPageController.roadList[road].data.length) {
+    if (episode < 1 ||
+        episode > videoPageController.roadList[road].data.length) {
       KazumiDialog.showToast(message: '选集不可用，请重新选择播放源');
       return;
     }
@@ -309,7 +279,6 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
     super.initState();
     infoController.bangumiItem = inputBangumiIten;
     infoController.characterList.clear();
-    infoController.commentsList.clear();
     infoController.staffList.clear();
     infoController.pluginSearchResponseList.clear();
     videoPageController.currentEpisode = 1;
@@ -326,26 +295,23 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
     }
     sourceTabController =
         TabController(length: pluginsController.pluginList.length, vsync: this);
-    infoTabController = TabController(length: 5, initialIndex: 0, vsync: this);
+    infoTabController = TabController(length: 3, initialIndex: 0, vsync: this);
     showRating =
         GStorage.setting.get(SettingBoxKey.showRating, defaultValue: true);
     infoTabController.addListener(() {
+      if (infoTabController.indexIsChanging) return;
       int index = infoTabController.index;
-      if (index == 1 &&
-          infoController.commentsList.isEmpty &&
-          !commentsIsLoading &&
-          !commentsIsEmpty &&
-          !commentsQueryTimeout) {
-        loadMoreComments();
+      if (index == 0 && !episodesLoaded && !episodesIsLoading) {
+        loadEpisodes();
       }
-      if (index == 2 &&
+      if (index == 1 &&
           infoController.characterList.isEmpty &&
           !charactersIsLoading &&
           !charactersIsEmpty &&
           !charactersQueryTimeout) {
         loadCharacters();
       }
-      if (index == 4 &&
+      if (index == 2 &&
           infoController.staffList.isEmpty &&
           !staffIsLoading &&
           !staffIsEmpty &&
@@ -353,12 +319,16 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
         loadStaff();
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        loadEpisodes();
+      }
+    });
   }
 
   @override
   void dispose() {
     infoController.characterList.clear();
-    infoController.commentsList.clear();
     infoController.staffList.clear();
     infoController.pluginSearchResponseList.clear();
     videoPageController.currentEpisode = 1;
@@ -413,7 +383,7 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> tabs = <String>['吐槽', '角色', '制作人员'];
+    final List<String> tabs = <String>['选集', '角色', '制作人员'];
     final bool showWindowButton = GStorage.setting
         .get(SettingBoxKey.showWindowButton, defaultValue: false);
     return PopScope(
@@ -552,16 +522,22 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
               return InfoTabView(
                 tabController: infoTabController,
                 bangumiItem: infoController.bangumiItem,
-                commentsQueryTimeout: commentsQueryTimeout,
-                commentsIsEmpty: commentsIsEmpty,
+                episodesIsLoading: episodesIsLoading,
+                episodesQueryTimeout: episodesQueryTimeout,
+                episodesIsEmpty: episodesIsEmpty,
+                episodesLoaded: episodesLoaded,
+                selectedEpisodeRoad: selectedEpisodeRoad,
+                roadList: videoPageController.roadList,
                 charactersQueryTimeout: charactersQueryTimeout,
                 charactersIsEmpty: charactersIsEmpty,
                 staffQueryTimeout: staffQueryTimeout,
                 staffIsEmpty: staffIsEmpty,
-                loadMoreComments: loadMoreComments,
+                loadEpisodes: loadEpisodes,
+                openSourceSheet: () => _showSourceSheet(context),
+                selectEpisodeRoad: _selectEpisodeRoad,
+                playEpisode: _playEpisode,
                 loadCharacters: loadCharacters,
                 loadStaff: loadStaff,
-                commentsList: infoController.commentsList,
                 characterList: infoController.characterList,
                 staffList: infoController.staffList,
                 isLoading: showBangumiInfoSkeleton,
@@ -570,30 +546,10 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
           ),
           floatingActionButton: FloatingActionButton.extended(
             icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('开始观看'),
+            label: const Text('播放源'),
             elevation: KazumiElevations.low,
             onPressed: () async {
-              showModalBottomSheet(
-                isScrollControlled: true,
-                constraints: BoxConstraints(
-                  maxHeight: (MediaQuery.sizeOf(context).height >=
-                          LayoutBreakpoint.compact['height']!)
-                      ? MediaQuery.of(context).size.height * 3 / 4
-                      : MediaQuery.of(context).size.height,
-                  maxWidth: (MediaQuery.sizeOf(context).width >=
-                          LayoutBreakpoint.medium['width']!)
-                      ? MediaQuery.of(context).size.width * 9 / 16
-                      : MediaQuery.of(context).size.width,
-                ),
-                clipBehavior: Clip.antiAlias,
-                showDragHandle: true,
-                context: context,
-                builder: (context) {
-                  return SourceSheet(
-                      tabController: sourceTabController,
-                      infoController: infoController);
-                },
-              );
+              _showSourceSheet(context);
             },
           ),
         ),

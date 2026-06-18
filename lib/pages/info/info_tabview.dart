@@ -1,49 +1,59 @@
-import 'dart:ui' as ui;
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/widget/error_widget.dart';
-import 'package:kazumi/bean/card/comments_card.dart';
 import 'package:kazumi/bean/card/character_card.dart';
 import 'package:kazumi/bean/card/staff_card.dart';
-import 'package:kazumi/utils/utils.dart';
-import 'package:skeletonizer/skeletonizer.dart';
+import 'package:kazumi/bean/widget/error_widget.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
-import 'package:kazumi/modules/comments/comment_item.dart';
 import 'package:kazumi/modules/characters/character_item.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/staff/staff_item.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class InfoTabView extends StatefulWidget {
   const InfoTabView({
     super.key,
-    required this.commentsQueryTimeout,
-    required this.commentsIsEmpty,
+    required this.episodesIsLoading,
+    required this.episodesQueryTimeout,
+    required this.episodesIsEmpty,
+    required this.episodesLoaded,
+    required this.selectedEpisodeRoad,
+    required this.roadList,
     required this.charactersQueryTimeout,
     required this.charactersIsEmpty,
     required this.staffQueryTimeout,
     required this.staffIsEmpty,
     required this.tabController,
-    required this.loadMoreComments,
+    required this.loadEpisodes,
+    required this.openSourceSheet,
+    required this.selectEpisodeRoad,
+    required this.playEpisode,
     required this.loadCharacters,
     required this.loadStaff,
     required this.bangumiItem,
-    required this.commentsList,
     required this.characterList,
     required this.staffList,
     required this.isLoading,
   });
 
-  final bool commentsQueryTimeout;
-  final bool commentsIsEmpty;
+  final bool episodesIsLoading;
+  final bool episodesQueryTimeout;
+  final bool episodesIsEmpty;
+  final bool episodesLoaded;
+  final int selectedEpisodeRoad;
+  final List<Road> roadList;
   final bool charactersQueryTimeout;
   final bool charactersIsEmpty;
   final bool staffQueryTimeout;
   final bool staffIsEmpty;
   final TabController tabController;
-  final Future<void> Function({int offset}) loadMoreComments;
+  final Future<void> Function() loadEpisodes;
+  final VoidCallback openSourceSheet;
+  final ValueChanged<int> selectEpisodeRoad;
+  final void Function({required int road, required int episode}) playEpisode;
   final Future<void> Function() loadCharacters;
   final Future<void> Function() loadStaff;
   final BangumiItem bangumiItem;
-  final List<CommentItem> commentsList;
   final List<CharacterItem> characterList;
   final List<StaffFullItem> staffList;
   final bool isLoading;
@@ -52,83 +62,115 @@ class InfoTabView extends StatefulWidget {
   State<InfoTabView> createState() => _InfoTabViewState();
 }
 
-class _InfoTabViewState extends State<InfoTabView>
-    with SingleTickerProviderStateMixin {
-  final maxWidth = 1180.0;
+class _InfoTabViewState extends State<InfoTabView> {
+  static const double maxWidth = 1180.0;
 
-  Widget get commentsListBody {
-    if (widget.commentsQueryTimeout) {
+  Widget get episodeListBody {
+    if (widget.episodesIsLoading) {
+      return const _EpisodeStatePanel(
+        icon: Icons.sync_rounded,
+        title: '正在加载选集',
+        message: '正在读取上一次使用的播放源和集数列表',
+        showProgress: true,
+      );
+    }
+
+    if (widget.episodesQueryTimeout) {
       return GeneralErrorWidget(
-        errMsg: '获取失败，请重试',
+        errMsg: '选集加载失败，请重新选择播放源',
         actions: [
           GeneralErrorButton(
-            onPressed: () {
-              widget.loadMoreComments(offset: widget.commentsList.length);
-            },
+            onPressed: widget.loadEpisodes,
             text: '重试',
+          ),
+          GeneralErrorButton(
+            onPressed: widget.openSourceSheet,
+            text: '选择播放源',
           ),
         ],
       );
     }
-    if (widget.commentsIsEmpty) {
-      return const Center(child: Text('什么都没有找到 (´;ω;`)'));
+
+    if (!widget.episodesLoaded ||
+        widget.episodesIsEmpty ||
+        widget.roadList.isEmpty) {
+      return _EpisodeStatePanel(
+        icon: Icons.playlist_play_rounded,
+        title: '选择播放源后显示选集',
+        message: '第一次打开这部作品时，需要先从规则聚合搜索里选择一个可用播放源。',
+        actionLabel: '搜索播放源',
+        onAction: widget.openSourceSheet,
+      );
     }
 
-    final itemCount =
-        widget.commentsList.isNotEmpty ? widget.commentsList.length : 4;
+    final selectedRoad =
+        widget.selectedEpisodeRoad.clamp(0, widget.roadList.length - 1).toInt();
+    final road = widget.roadList[selectedRoad];
+    final episodeCount = math.min(road.data.length, road.identifier.length);
 
-    return NotificationListener<ScrollEndNotification>(
-      onNotification: (scrollEnd) {
-        final metrics = scrollEnd.metrics;
-        if (metrics.pixels >= metrics.maxScrollExtent - 200) {
-          widget.loadMoreComments(offset: widget.commentsList.length);
-        }
-        return true;
-      },
-      child: ListView.separated(
-        key: const PageStorageKey<String>('吐槽'),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          return SafeArea(
-            top: false,
-            bottom: false,
-            child: Center(
+    if (episodeCount == 0) {
+      return _EpisodeStatePanel(
+        icon: Icons.playlist_remove_rounded,
+        title: '当前播放源没有可用选集',
+        message: '换一个播放源试试，或者回到详情页重新搜索规则结果。',
+        actionLabel: '重新选择播放源',
+        onAction: widget.openSourceSheet,
+      );
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: CustomScrollView(
+          key: const PageStorageKey<String>('episodes'),
+          slivers: [
+            SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SizedBox(
-                  width: MediaQuery.sizeOf(context).width > maxWidth
-                      ? maxWidth
-                      : MediaQuery.sizeOf(context).width - 32,
-                  child: widget.commentsList.isNotEmpty
-                      ? CommentsCard(commentItem: widget.commentsList[index])
-                      : CommentsCard.bone(),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                child: _EpisodeRoadSelector(
+                  roadList: widget.roadList,
+                  selectedRoad: selectedRoad,
+                  onSelected: widget.selectEpisodeRoad,
+                  onChangeSource: widget.openSourceSheet,
                 ),
               ),
             ),
-          );
-        },
-        separatorBuilder: (BuildContext context, int index) {
-          return SafeArea(
-            top: false,
-            bottom: false,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SizedBox(
-                  width: MediaQuery.sizeOf(context).width > maxWidth
-                      ? maxWidth
-                      : MediaQuery.sizeOf(context).width - 32,
-                  child: const Divider(
-                    thickness: 0.5,
-                    indent: 10,
-                    endIndent: 10,
-                  ),
-                ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.crossAxisExtent;
+                  final columns = width >= 980
+                      ? 6
+                      : width >= 720
+                          ? 5
+                          : width >= 520
+                              ? 4
+                              : 3;
+                  return SliverGrid.builder(
+                    itemCount: episodeCount,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 2.35,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _EpisodeTile(
+                        label: road.identifier[index],
+                        episode: index + 1,
+                        onTap: () => widget.playEpisode(
+                          road: selectedRoad,
+                          episode: index + 1,
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -146,13 +188,13 @@ class _InfoTabViewState extends State<InfoTabView>
       );
     }
     if (widget.staffIsEmpty) {
-      return const Center(child: Text('什么都没有找到 (´;ω;`)'));
+      return const Center(child: Text('什么都没有找到 (;´д`)'));
     }
 
     final itemCount = widget.staffList.isNotEmpty ? widget.staffList.length : 8;
 
     return ListView.builder(
-      key: const PageStorageKey<String>('制作人员'),
+      key: const PageStorageKey<String>('staff'),
       padding: const EdgeInsets.symmetric(vertical: 16),
       itemCount: itemCount,
       itemBuilder: (context, index) {
@@ -192,14 +234,14 @@ class _InfoTabViewState extends State<InfoTabView>
       );
     }
     if (widget.charactersIsEmpty) {
-      return const Center(child: Text('什么都没有找到 (´;ω;`)'));
+      return const Center(child: Text('什么都没有找到 (;´д`)'));
     }
 
     final itemCount =
         widget.characterList.isNotEmpty ? widget.characterList.length : 4;
 
     return ListView.builder(
-      key: const PageStorageKey<String>('角色'),
+      key: const PageStorageKey<String>('characters'),
       padding: const EdgeInsets.symmetric(vertical: 16),
       itemCount: itemCount,
       itemBuilder: (context, index) {
@@ -235,7 +277,7 @@ class _InfoTabViewState extends State<InfoTabView>
           index: widget.tabController.index,
           sizing: StackFit.expand,
           children: [
-            commentsListBody,
+            episodeListBody,
             charactersListBody,
             staffListBody,
           ],
@@ -245,88 +287,18 @@ class _InfoTabViewState extends State<InfoTabView>
   }
 }
 
-class _InfoUnderConstructionPanel extends StatelessWidget {
-  const _InfoUnderConstructionPanel({required this.maxWidth});
-
-  final double maxWidth;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-        child: SizedBox(
-          width: MediaQuery.sizeOf(context).width > maxWidth
-              ? maxWidth
-              : MediaQuery.sizeOf(context).width - 32,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerLowest,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: 0.62),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.forum_outlined,
-                    color: scheme.primary,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '评论区',
-                          style: TextStyle(
-                            color: scheme.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '这一栏还在施工中，吐槽内容请先切到「吐槽」查看。',
-                          style: TextStyle(
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoOverviewCard extends StatelessWidget {
-  const _InfoOverviewCard({
-    required this.bangumiItem,
-    required this.fullIntro,
-    required this.fullTag,
-    required this.onToggleIntro,
-    required this.onToggleTag,
+class _EpisodeRoadSelector extends StatelessWidget {
+  const _EpisodeRoadSelector({
+    required this.roadList,
+    required this.selectedRoad,
+    required this.onSelected,
+    required this.onChangeSource,
   });
 
-  final BangumiItem bangumiItem;
-  final bool fullIntro;
-  final bool fullTag;
-  final VoidCallback onToggleIntro;
-  final VoidCallback onToggleTag;
+  final List<Road> roadList;
+  final int selectedRoad;
+  final ValueChanged<int> onSelected;
+  final VoidCallback onChangeSource;
 
   @override
   Widget build(BuildContext context) {
@@ -334,290 +306,45 @@ class _InfoOverviewCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(18),
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: 0.62),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.05),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 920;
-            final synopsis = _InfoSynopsisSection(
-              bangumiItem: bangumiItem,
-              fullIntro: fullIntro,
-              onToggleIntro: onToggleIntro,
-            );
-            final facts = _InfoFactsSection(bangumiItem: bangumiItem);
-            final tags = _InfoTagsSection(
-              bangumiItem: bangumiItem,
-              fullTag: fullTag,
-              onToggleTag: onToggleTag,
-            );
-
-            if (!isWide) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  synopsis,
-                  const SizedBox(height: 22),
-                  _InfoColumnDivider(horizontal: true),
-                  const SizedBox(height: 20),
-                  facts,
-                  const SizedBox(height: 22),
-                  _InfoColumnDivider(horizontal: true),
-                  const SizedBox(height: 20),
-                  tags,
-                ],
-              );
-            }
-
-            return IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(flex: 5, child: synopsis),
-                  const SizedBox(width: 22),
-                  const _InfoColumnDivider(),
-                  const SizedBox(width: 22),
-                  Expanded(flex: 3, child: facts),
-                  const SizedBox(width: 22),
-                  const _InfoColumnDivider(),
-                  const SizedBox(width: 22),
-                  Expanded(flex: 4, child: tags),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoSynopsisSection extends StatelessWidget {
-  const _InfoSynopsisSection({
-    required this.bangumiItem,
-    required this.fullIntro,
-    required this.onToggleIntro,
-  });
-
-  final BangumiItem bangumiItem;
-  final bool fullIntro;
-  final VoidCallback onToggleIntro;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final summary = bangumiItem.summary.trim();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _InfoSectionTitle(
-          icon: Icons.notes_rounded,
-          title: '媒体简介',
-        ),
-        const SizedBox(height: 14),
-        if (summary.isEmpty)
-          Text(
-            '暂无简介',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final textStyle = TextStyle(
-                color: scheme.onSurface.withValues(alpha: 0.86),
-                fontSize: 14,
-                height: 1.62,
-                fontWeight: FontWeight.w500,
-              );
-              final span = TextSpan(text: summary, style: textStyle);
-              final tp = TextPainter(
-                text: span,
-                textDirection: TextDirection.ltr,
-                maxLines: 7,
-              )..layout(maxWidth: constraints.maxWidth);
-              final shouldCollapse = tp.didExceedMaxLines;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SelectableText(
-                    summary,
-                    maxLines: fullIntro ? null : 7,
-                    scrollBehavior: const ScrollBehavior().copyWith(
-                      scrollbars: false,
-                    ),
-                    scrollPhysics: const NeverScrollableScrollPhysics(),
-                    selectionHeightStyle: ui.BoxHeightStyle.max,
-                    style: textStyle,
-                  ),
-                  if (shouldCollapse) ...[
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: onToggleIntro,
-                      icon: Icon(
-                        fullIntro
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                      ),
-                      label: Text(fullIntro ? '收起简介' : '展开简介'),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-      ],
-    );
-  }
-}
-
-class _InfoFactsSection extends StatelessWidget {
-  const _InfoFactsSection({required this.bangumiItem});
-
-  final BangumiItem bangumiItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = <({IconData icon, String label, String value})>[
-      if (bangumiItem.airDate.isNotEmpty)
-        (
-          icon: Icons.event_rounded,
-          label: '首播日期',
-          value: bangumiItem.airDate,
-        ),
-      if (bangumiItem.ratingScore > 0)
-        (
-          icon: Icons.star_rounded,
-          label: 'Bangumi 评分',
-          value: bangumiItem.ratingScore.toStringAsFixed(1),
-        ),
-      if (bangumiItem.rank > 0)
-        (
-          icon: Icons.leaderboard_rounded,
-          label: '综合排名',
-          value: '#${bangumiItem.rank}',
-        ),
-      if (bangumiItem.votes > 0)
-        (
-          icon: Icons.how_to_vote_rounded,
-          label: '评分人数',
-          value: '${bangumiItem.votes}',
-        ),
-      if (bangumiItem.alias.isNotEmpty)
-        (
-          icon: Icons.badge_rounded,
-          label: '别名',
-          value: bangumiItem.alias.take(2).join(' / '),
-        ),
-      if (bangumiItem.info.trim().isNotEmpty)
-        (
-          icon: Icons.info_outline_rounded,
-          label: '资料',
-          value: bangumiItem.info.trim(),
-        ),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _InfoSectionTitle(
-          icon: Icons.dashboard_customize_rounded,
-          title: '基础信息',
-        ),
-        const SizedBox(height: 14),
-        if (rows.isEmpty)
-          Text(
-            '暂无更多资料',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          )
-        else
-          ...rows.map(
-            (row) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _InfoFactRow(
-                icon: row.icon,
-                label: row.label,
-                value: row.value,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _InfoFactRow extends StatelessWidget {
-  const _InfoFactRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.all(12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18, color: scheme.primary),
-            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: scheme.onSurfaceVariant,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: scheme.onSurface,
-                      fontSize: 13,
-                      height: 1.34,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (int index = 0; index < roadList.length; index++)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: index == roadList.length - 1 ? 0 : 8,
+                        ),
+                        child: ChoiceChip(
+                          selected: selectedRoad == index,
+                          label: Text(
+                            roadList[index].name.isEmpty
+                                ? '线路 ${index + 1}'
+                                : roadList[index].name,
+                          ),
+                          onSelected: (_) => onSelected(index),
+                        ),
+                      ),
+                  ],
+                ),
               ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.tonalIcon(
+              onPressed: onChangeSource,
+              icon: const Icon(Icons.manage_search_rounded),
+              label: const Text('换源'),
             ),
           ],
         ),
@@ -626,155 +353,137 @@ class _InfoFactRow extends StatelessWidget {
   }
 }
 
-class _InfoTagsSection extends StatelessWidget {
-  const _InfoTagsSection({
-    required this.bangumiItem,
-    required this.fullTag,
-    required this.onToggleTag,
+class _EpisodeTile extends StatelessWidget {
+  const _EpisodeTile({
+    required this.label,
+    required this.episode,
+    required this.onTap,
   });
 
-  final BangumiItem bangumiItem;
-  final bool fullTag;
-  final VoidCallback onToggleTag;
+  final String label;
+  final int episode;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tags = bangumiItem.tags;
-    final visibleCount = fullTag || tags.length < 13 ? tags.length : 12;
+    final displayLabel = label.trim().isEmpty ? '第 $episode 集' : label.trim();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _InfoSectionTitle(
-          icon: Icons.sell_rounded,
-          title: '主题标签',
-        ),
-        const SizedBox(height: 14),
-        if (tags.isEmpty)
-          Text(
-            '暂无标签',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.52),
             ),
-          )
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: Utils.isDesktop() ? 8 : 6,
-            children: [
-              for (final tag in tags.take(visibleCount))
-                ActionChip(
-                  side: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.72),
-                  ),
-                  backgroundColor:
-                      scheme.surfaceContainerHighest.withValues(alpha: 0.42),
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(tag.name),
-                      if (tag.count > 0) ...[
-                        const SizedBox(width: 5),
-                        Text(
-                          '${tag.count}',
-                          style: TextStyle(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  onPressed: () {
-                    Modular.to.pushNamed('/search/${tag.name}');
-                  },
-                ),
-              if (tags.length > 12)
-                ActionChip(
-                  side: BorderSide(
-                    color: scheme.primary.withValues(alpha: 0.42),
-                  ),
-                  backgroundColor: scheme.primaryContainer.withValues(
-                    alpha: 0.48,
-                  ),
-                  avatar: Icon(
-                    fullTag
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.add_rounded,
-                    color: scheme.primary,
-                  ),
-                  label: Text(
-                    fullTag ? '收起标签' : '更多标签',
-                    style: TextStyle(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  onPressed: onToggleTag,
-                ),
-            ],
+            borderRadius: BorderRadius.circular(12),
           ),
-      ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                displayLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _InfoSectionTitle extends StatelessWidget {
-  const _InfoSectionTitle({
+class _EpisodeStatePanel extends StatelessWidget {
+  const _EpisodeStatePanel({
     required this.icon,
     required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.showProgress = false,
   });
 
   final IconData icon;
   final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool showProgress;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Row(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.64),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(7),
-            child: Icon(icon, size: 17, color: scheme.primary),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.62),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: scheme.primary, size: 34),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.42,
+                    ),
+                  ),
+                  if (showProgress) ...[
+                    const SizedBox(height: 20),
+                    const SizedBox(
+                      width: 26,
+                      height: 26,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    ),
+                  ],
+                  if (actionLabel != null && onAction != null) ...[
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: onAction,
+                      icon: const Icon(Icons.travel_explore_rounded),
+                      label: Text(actionLabel!),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
+      ),
     );
-  }
-}
-
-class _InfoColumnDivider extends StatelessWidget {
-  const _InfoColumnDivider({this.horizontal = false});
-
-  final bool horizontal;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context)
-        .colorScheme
-        .outlineVariant
-        .withValues(alpha: 0.68);
-
-    if (horizontal) {
-      return Divider(height: 1, thickness: 1, color: color);
-    }
-    return VerticalDivider(width: 1, thickness: 1, color: color);
   }
 }
