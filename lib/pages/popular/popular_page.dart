@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
+import 'package:kazumi/bean/card/bangumi_history_card.dart';
 import 'package:kazumi/bean/widget/error_widget.dart';
 import 'package:kazumi/bean/widget/custom_dropdown_menu.dart';
+import 'package:kazumi/modules/history/history_module.dart';
+import 'package:kazumi/pages/history/history_controller.dart';
+import 'package:kazumi/pages/popular/popular_layout.dart';
 import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/bean/card/bangumi_card.dart';
 import 'package:kazumi/design/design_tokens.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:kazumi/pages/menu/menu.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 
@@ -27,6 +32,7 @@ class _PopularPageState extends State<PopularPage>
   final FocusNode _focusNode = FocusNode();
   final ScrollController scrollController = ScrollController();
   final PopularController popularController = Modular.get<PopularController>();
+  final HistoryController historyController = Modular.get<HistoryController>();
   final PageController _featuredController =
       PageController(viewportFraction: 0.85);
   int _featuredPage = 0;
@@ -46,6 +52,7 @@ class _PopularPageState extends State<PopularPage>
     if (popularController.trendList.isEmpty) {
       popularController.queryBangumiByTrend();
     }
+    historyController.init();
   }
 
   @override
@@ -118,9 +125,11 @@ class _PopularPageState extends State<PopularPage>
               if (list.isNotEmpty) ...[
                 _buildSectionHeader('For You', Icons.auto_awesome_rounded),
                 _buildFeaturedRow(scheme, list),
-                _buildSectionHeader(
-                    'Popular', Icons.local_fire_department_rounded)
               ],
+              _buildContinueWatchingStrip(),
+              if (list.isNotEmpty)
+                _buildSectionHeader(
+                    'Popular', Icons.local_fire_department_rounded),
               _buildTagChips(scheme),
               if (popularController.isLoadingMore && list.isEmpty)
                 const SliverToBoxAdapter(
@@ -206,9 +215,12 @@ class _PopularPageState extends State<PopularPage>
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
+    return SliverToBoxAdapter(child: _buildSectionHeaderBox(title, icon));
+  }
+
+  Widget _buildSectionHeaderBox(String title, IconData icon) {
     final scheme = Theme.of(context).colorScheme;
-    return SliverToBoxAdapter(
-        child: Padding(
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Row(children: [
         Container(
@@ -223,9 +235,9 @@ class _PopularPageState extends State<PopularPage>
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: scheme.onSurface,
-                letterSpacing: -0.3)),
+                letterSpacing: 0)),
       ]),
-    ));
+    );
   }
 
   Widget _buildFeaturedRow(ColorScheme scheme, List list) {
@@ -317,6 +329,47 @@ class _PopularPageState extends State<PopularPage>
             )));
   }
 
+  Widget _buildContinueWatchingStrip() {
+    return Observer(builder: (context) {
+      final histories = historyController.histories.toList()
+        ..sort((a, b) => b.lastWatchTime.compareTo(a.lastWatchTime));
+      if (histories.isEmpty) {
+        return const SliverToBoxAdapter(child: SizedBox.shrink());
+      }
+
+      return SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeaderBox(
+                'Continue Watching', Icons.play_circle_fill_rounded),
+            SizedBox(
+              height: 154,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: histories.length > 12 ? 12 : histories.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final history = histories[index];
+                  return SizedBox(
+                    width: 320,
+                    child: _ContinueWatchingTile(
+                      history: history,
+                      onDelete: () {
+                        historyController.deleteHistory(history);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   Widget _buildTagChips(ColorScheme scheme) {
     return SliverToBoxAdapter(
       child: SizedBox(
@@ -405,24 +458,41 @@ class _PopularPageState extends State<PopularPage>
 
   Widget _buildGrid(List list) {
     if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    int crossCount = 3;
-    final w = MediaQuery.sizeOf(context).width;
-    if (w > LayoutBreakpoint.compact['width']!) crossCount = 5;
-    if (w > LayoutBreakpoint.medium['width']!) crossCount = 6;
-    return SliverPadding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-        sliver: SliverGrid(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final contentWidth = constraints.crossAxisExtent;
+        final crossCount = popularPosterGridColumnCount(contentWidth);
+        final gap = popularPosterGridGap(contentWidth);
+        final textHeight = popularPosterGridTextHeight(contentWidth);
+        final horizontalPadding = contentWidth >= 1440 ? 20.0 : 12.0;
+        final availableWidth = contentWidth - horizontalPadding * 2;
+        final posterWidth =
+            (availableWidth - gap * (crossCount - 1)) / crossCount;
+
+        return SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            24,
+          ),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              mainAxisSpacing: gap,
+              crossAxisSpacing: gap,
               crossAxisCount: crossCount,
-              mainAxisExtent: w / crossCount / 0.68 + 28),
-          delegate: SliverChildBuilderDelegate(
+              mainAxisExtent: posterWidth / 0.68 + textHeight,
+            ),
+            delegate: SliverChildBuilderDelegate(
               (context, index) => index >= list.length
                   ? null
                   : BangumiCardV(bangumiItem: list[index]),
-              childCount: list.length),
-        ));
+              childCount: list.length,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> showTagMenu() async {
@@ -460,5 +530,64 @@ class _PopularPageState extends State<PopularPage>
       popularController.setCurrentTag(selected);
       await popularController.queryBangumiByTag(type: 'init');
     }
+  }
+}
+
+class _ContinueWatchingTile extends StatelessWidget {
+  const _ContinueWatchingTile({
+    required this.history,
+    required this.onDelete,
+  });
+
+  final History history;
+  final VoidCallback onDelete;
+
+  void _showDeleteMenu(BuildContext context, Offset position) {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    showMenu<void>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(position.dx, position.dy, 1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem<void>(
+          onTap: onDelete,
+          child: const Row(
+            children: [
+              Icon(Icons.delete_outline),
+              SizedBox(width: 10),
+              Text('删除记录'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Offset? secondaryTapPosition;
+
+    return Listener(
+      onPointerDown: (event) {
+        if (event.kind == PointerDeviceKind.mouse &&
+            event.buttons == kSecondaryMouseButton) {
+          secondaryTapPosition = event.position;
+        }
+      },
+      child: GestureDetector(
+        onSecondaryTap: () {
+          _showDeleteMenu(context, secondaryTapPosition ?? Offset.zero);
+        },
+        onLongPressStart: (details) {
+          _showDeleteMenu(context, details.globalPosition);
+        },
+        child: BangumiHistoryCardV(
+          historyItem: history,
+          onDeleted: onDelete,
+        ),
+      ),
+    );
   }
 }
