@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
@@ -435,31 +435,34 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                       ),
                     ),
                     actions: [
-                      DesktopWindowActionRail(
-                        actions: [
-                          if (innerBoxIsScrolled)
+                      WindowControlInset(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (innerBoxIsScrolled)
+                              EmbeddedNativeControlArea(
+                                child: CollectButton(
+                                  bangumiItem: infoController.bangumiItem,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
                             EmbeddedNativeControlArea(
-                              child: CollectButton(
-                                bangumiItem: infoController.bangumiItem,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                              child: IconButton(
+                                onPressed: () {
+                                  launchUrl(
+                                    Uri.parse(
+                                        'https://bangumi.tv/subject/${infoController.bangumiItem.id}'),
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
+                                icon: const Icon(Icons.open_in_browser_rounded),
                               ),
                             ),
-                          EmbeddedNativeControlArea(
-                            child: IconButton(
-                              onPressed: () {
-                                launchUrl(
-                                  Uri.parse(
-                                      'https://bangumi.tv/subject/${infoController.bangumiItem.id}'),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              },
-                              icon: const Icon(Icons.open_in_browser_rounded),
-                            ),
-                          ),
-                        ],
-                        trailingSpacing: 8,
+                            const SizedBox(width: 8),
+                          ],
+                        ),
                       ),
                     ],
                     toolbarHeight: (Platform.isMacOS && showWindowButton)

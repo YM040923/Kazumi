@@ -120,17 +120,6 @@ class _ScaffoldMenu extends State<ScaffoldMenu> {
                       indicatorShape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       labelType: NavigationRailLabelType.selected,
-                      leading: Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: FloatingActionButton(
-                              elevation: 0,
-                              heroTag: null,
-                              hoverElevation: 0,
-                              backgroundColor: scheme.surfaceContainerHighest,
-                              foregroundColor: scheme.onSurfaceVariant,
-                              onPressed: () => Modular.to.pushNamed('/search/'),
-                              child:
-                                  const Icon(Icons.search_rounded, size: 22))),
                       destinations: const [
                         NavigationRailDestination(
                             selectedIcon: Icon(Icons.home_rounded, size: 24),

@@ -26,12 +26,12 @@ void main() {
       expect(controlsSource, contains(marker));
     }
 
-    for (final source in [sysAppBarSource, infoSource]) {
-      expect(source, contains('DesktopWindowActionRail'));
-    }
+    expect(sysAppBarSource, contains('DesktopWindowActionRail'));
 
     expect(popularSource, isNot(contains('DesktopWindowActionRail')));
     expect(popularSource, contains('WindowControlInset'));
+    expect(infoSource, isNot(contains('DesktopWindowActionRail')));
+    expect(infoSource, contains('WindowControlInset'));
     expect(popularSource, isNot(contains('windowManager.close()')));
     expect(infoSource, isNot(contains('windowManager.close()')));
     expect(sysAppBarSource, isNot(contains('CloseButton(')));
