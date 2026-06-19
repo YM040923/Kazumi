@@ -137,30 +137,20 @@ class _EditorialShelfPanel extends StatelessWidget {
           flex: 7,
           child: _DetailColumn(
             bangumiItem: bangumiItem,
-            showSynopsis: !showChart,
+            showSynopsis: true,
           ),
         ),
         if (showChart) ...[
           const SizedBox(width: 22),
           SizedBox(
             width: 300,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _SynopsisPanel(summary: bangumiItem.summary),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 126,
-                  child: _RatingShelf(
-                    bangumiItem: bangumiItem,
-                    touchedIndex: touchedIndex,
-                    onTouchRating: onTouchRating,
-                    showRating: showRating,
-                  ),
-                ),
-              ],
+            child: _DetailSidePanel(
+              child: _RatingShelf(
+                bangumiItem: bangumiItem,
+                touchedIndex: touchedIndex,
+                onTouchRating: onTouchRating,
+                showRating: showRating,
+              ),
             ),
           ),
         ],
@@ -321,21 +311,59 @@ class _DetailColumn extends StatelessWidget {
           itemSize: compact ? 15 : 17,
           unratedColor: scheme.outlineVariant.withValues(alpha: 0.42),
         ),
-        if (showSynopsis) ...[
+        if (showSynopsis && !compact) ...[
           const SizedBox(height: 14),
-          _SynopsisPanel(summary: summary),
+          Flexible(
+            child: SizedBox(
+              width: double.infinity,
+              child: _SynopsisPanel(summary: summary),
+            ),
+          ),
+        ] else if (showSynopsis) ...[
+          const SizedBox(height: 14),
+          _SynopsisPanel(summary: summary, compact: true),
         ],
         if (!compact) ...[
-          const SizedBox(height: 16),
-          _TagStrip(tags: bangumiItem.tags),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: 220,
-            height: 42,
-            child: CollectButton.extend(bangumiItem: bangumiItem),
-          ),
+          const SizedBox(height: 10),
+          _DetailFooter(bangumiItem: bangumiItem),
         ],
       ],
+    );
+  }
+}
+
+class _DetailFooter extends StatelessWidget {
+  const _DetailFooter({required this.bangumiItem});
+
+  final BangumiItem bangumiItem;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: _TagStrip(tags: bangumiItem.tags, dense: true),
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            height: 36,
+            child: CollectButton.extend(
+              bangumiItem: bangumiItem,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -378,17 +406,31 @@ class _SynopsisPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               normalizedSummary.isEmpty ? '暂无简介' : normalizedSummary,
-              maxLines: compact ? 3 : 7,
+              maxLines: compact ? 3 : 6,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    height: 1.48,
+                    height: compact ? 1.48 : 1.42,
                     fontWeight: FontWeight.w500,
                   ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DetailSidePanel extends StatelessWidget {
+  const _DetailSidePanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 260),
+      child: child,
     );
   }
 }
@@ -448,14 +490,19 @@ class _MetaPill extends StatelessWidget {
 }
 
 class _TagStrip extends StatelessWidget {
-  const _TagStrip({required this.tags});
+  const _TagStrip({
+    required this.tags,
+    this.dense = false,
+  });
 
   final List<BangumiTag> tags;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final visibleTags = tags.where((tag) => tag.name.trim().isNotEmpty).take(6);
+    final visibleTags =
+        tags.where((tag) => tag.name.trim().isNotEmpty).take(dense ? 5 : 6);
 
     if (visibleTags.isEmpty) {
       return Text(
@@ -468,27 +515,30 @@ class _TagStrip extends StatelessWidget {
     }
 
     return Wrap(
-      spacing: 7,
-      runSpacing: 7,
+      spacing: dense ? 6 : 7,
+      runSpacing: dense ? 0 : 7,
       children: [
         for (final tag in visibleTags)
           DecoratedBox(
             decoration: BoxDecoration(
               color: scheme.primaryContainer.withValues(alpha: 0.34),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(dense ? 7 : 8),
               border: Border.all(
                 color: scheme.primary.withValues(alpha: 0.16),
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              padding: EdgeInsets.symmetric(
+                horizontal: dense ? 7 : 8,
+                vertical: dense ? 4 : 5,
+              ),
               child: Text(
                 tag.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: scheme.onSurface,
-                  fontSize: 12,
+                  fontSize: dense ? 11 : 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -610,9 +660,9 @@ class _RatingShelf extends StatelessWidget {
                 color: touchedIndex == i
                     ? scheme.primary
                     : scheme.primary.withValues(alpha: 0.32),
-                width: 12,
+                width: 14,
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(5),
+                  top: Radius.circular(7),
                 ),
               ),
             ],

@@ -40,12 +40,30 @@ void main() {
     expect(infoCardSource, contains('_RatingShelf'));
     expect(infoCardSource, contains('CollectButton.extend'));
     expect(infoCardSource, isNot(contains('const Spacer()')));
+    expect(infoCardSource, contains('showSynopsis: true'));
+    expect(infoCardSource, isNot(contains('showSynopsis: !showChart')));
+    expect(infoCardSource, contains('_DetailSidePanel'));
+    expect(infoCardSource, contains('minHeight: 260'));
+    expect(infoCardSource, isNot(contains('height: 126')));
     expect(infoCardSource, contains('评分'));
     expect(infoCardSource, contains('首播'));
     expect(infoCardSource, contains('排名'));
     expect(infoCardSource, isNot(contains('_MediaControlPanel')));
     expect(infoCardSource, isNot(contains('_RatingConsole')));
     expect(infoCardSource, isNot(contains('letterSpacing: -0.5')));
+  });
+
+  test('detail header keeps actions in a compact footer to avoid overflow', () {
+    final infoCardSource = File('lib/bean/card/bangumi_info_card.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
+
+    expect(infoCardSource, contains('class _DetailFooter'));
+    expect(infoCardSource, contains('scrollDirection: Axis.horizontal'));
+    expect(infoCardSource,
+        contains('_TagStrip(tags: bangumiItem.tags, dense: true)'));
+    expect(
+        infoCardSource, isNot(contains('width: 220,\n            height: 42')));
   });
 
   test('detail tabs use a compact segmented bar instead of a full-width rail',
