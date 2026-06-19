@@ -56,6 +56,11 @@ abstract class CaptchaWebviewController<T> {
   /// [buttonXpath] 验证按钮元素的 XPath 选择器
   Future<void> loadPageForButtonClick(String url, String buttonXpath);
 
+  /// 加载指定 URL，并在页面内执行自定义验证脚本（类型3：自定义 JS 验证）
+  ///
+  /// 脚本可调用 window.KazumiCaptcha.log/clicked/done/fail。
+  Future<void> loadPageForCustomScript(String url, String script);
+
   /// 在 WebView 内通过 JS 模拟输入验证码并模拟点击提交按钮
   ///
   /// [captchaCode] 用户输入的验证码文本

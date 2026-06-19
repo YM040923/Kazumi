@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 import 'package:kazumi/design/desktop_layout.dart';
 import 'package:kazumi/design/design_tokens.dart';
@@ -12,6 +13,7 @@ class KazumiSettingsPageShell extends StatelessWidget {
     required this.icon,
     required this.children,
     this.actions,
+    this.onBack,
     this.maxWidth = KazumiDesktopShell.mediaPageMaxWidth,
     this.bottomPadding = KazumiSpacing.xl,
   });
@@ -21,6 +23,7 @@ class KazumiSettingsPageShell extends StatelessWidget {
   final IconData icon;
   final List<Widget> children;
   final Widget? actions;
+  final VoidCallback? onBack;
   final double maxWidth;
   final double bottomPadding;
 
@@ -37,6 +40,7 @@ class KazumiSettingsPageShell extends StatelessWidget {
             subtitle: subtitle,
             icon: icon,
             actions: actions,
+            onBack: onBack,
           ),
           const SizedBox(height: KazumiSpacing.md),
           ...children,
@@ -53,12 +57,14 @@ class KazumiSettingsPageHeader extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     this.actions,
+    this.onBack,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final Widget? actions;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +79,12 @@ class KazumiSettingsPageHeader extends StatelessWidget {
           child: KazumiDesktopHeaderTopRow(
             child: Row(
               children: [
+                IconButton.filledTonal(
+                  onPressed: onBack ?? () => Modular.to.pop(),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: '返回',
+                ),
+                const SizedBox(width: 12),
                 Container(
                   width: 48,
                   height: 48,

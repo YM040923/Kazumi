@@ -14,6 +14,7 @@ class CaptchaWebviewWindowsImpl
   String _currentInputXpath = '';
   String _currentPageUrl = '';
   String _buttonXpath = '';
+  String? _customScript;
 
   @override
   Future<void> init() async {
@@ -37,6 +38,8 @@ class CaptchaWebviewWindowsImpl
             await _injectCaptchaScript();
           } else if (_buttonXpath.isNotEmpty) {
             await _injectButtonClickScript(_buttonXpath);
+          } else if (_customScript != null) {
+            await _injectCustomScript(_customScript!);
           }
         }
       }),
@@ -57,8 +60,8 @@ class CaptchaWebviewWindowsImpl
             }
           }
           if (buttonWasClicked && !captchaDisappearedController.isClosed) {
-            logEventController
-                .add('[Captcha WebView] Button click → page navigated, verification done');
+            logEventController.add(
+                '[Captcha WebView] Button click → page navigated, verification done');
             buttonWasClicked = false;
             captchaDisappearedController.add(null);
           }
@@ -87,14 +90,18 @@ class CaptchaWebviewWindowsImpl
         captchaDisappearedController.add(null);
       }
     } else if (msg.startsWith('captchaLog:')) {
-      logEventController.add('[Captcha WebView JS] ${msg.replaceFirst('captchaLog:', '')}');
+      logEventController
+          .add('[Captcha WebView JS] ${msg.replaceFirst('captchaLog:', '')}');
     }
   }
 
   Future<bool> _isCaptchaPresent() async {
-    if (_currentCaptchaImageXpath.isEmpty || _headlessWebview == null) return false;
-    final escaped =
-        _currentCaptchaImageXpath.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    if (_currentCaptchaImageXpath.isEmpty || _headlessWebview == null) {
+      return false;
+    }
+    final escaped = _currentCaptchaImageXpath
+        .replaceAll('\\', '\\\\')
+        .replaceAll("'", "\\'");
     try {
       final result = await _headlessWebview!.executeScript('''
 (function() {
@@ -114,8 +121,9 @@ class CaptchaWebviewWindowsImpl
 
   Future<void> _injectCaptchaScript() async {
     if (_currentCaptchaImageXpath.isEmpty) return;
-    final escapedXpath =
-        _currentCaptchaImageXpath.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    final escapedXpath = _currentCaptchaImageXpath
+        .replaceAll('\\', '\\\\')
+        .replaceAll("'", "\\'");
     final escapedInputXpath =
         _currentInputXpath.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
 
@@ -238,10 +246,12 @@ class CaptchaWebviewWindowsImpl
   }
 
   @override
-  Future<void> loadPage(String url, String captchaXpath, {String? inputXpath}) async {
+  Future<void> loadPage(String url, String captchaXpath,
+      {String? inputXpath}) async {
     _currentCaptchaImageXpath = captchaXpath;
     _currentInputXpath = inputXpath ?? '';
     _buttonXpath = '';
+    _customScript = null;
     buttonWasClicked = false;
     _currentPageUrl = url;
     captchaWasFound = false;
@@ -252,15 +262,73 @@ class CaptchaWebviewWindowsImpl
   Future<void> loadPageForButtonClick(String url, String buttonXpath) async {
     _currentCaptchaImageXpath = '';
     _buttonXpath = buttonXpath;
+    _customScript = null;
     buttonWasClicked = false;
     _currentPageUrl = url;
     captchaWasFound = false;
     await _headlessWebview?.loadUrl(url);
   }
 
+  @override
+  Future<void> loadPageForCustomScript(String url, String script) async {
+    _currentCaptchaImageXpath = '';
+    _currentInputXpath = '';
+    _buttonXpath = '';
+    _customScript = script;
+    buttonWasClicked = false;
+    _currentPageUrl = url;
+    captchaWasFound = false;
+    await _headlessWebview?.loadUrl(url);
+  }
+
+  Future<void> _injectCustomScript(String script) async {
+    logEventController.add('[Captcha WebView] Injecting custom script');
+    final wrappedScript = '''
+(function() {
+  try {
+    window.KazumiCaptcha = {
+      log: function(message) {
+        window.chrome.webview.postMessage('captchaLog:' + String(message));
+      },
+      clicked: function() {
+        window.chrome.webview.postMessage('buttonClicked:');
+      },
+      done: function() {
+        window.chrome.webview.postMessage('captchaGone:');
+      },
+      fail: function(message) {
+        window.chrome.webview.postMessage('captchaLog:Custom script failed: ' + String(message));
+      }
+    };
+    window.KazumiCaptcha.log('CustomScript injected on ' + window.location.href);
+    if (!${script.trim().isEmpty ? 'false' : 'true'}) {
+      window.KazumiCaptcha.fail('empty captchaScript');
+      return;
+    }
+    var __kazumiResult = (function() {
+$script
+    })();
+    if (__kazumiResult === true) {
+      window.KazumiCaptcha.done();
+    }
+  } catch(e) {
+    try { window.KazumiCaptcha.fail(e && e.message ? e.message : e); } catch(e2) {}
+  }
+})();
+''';
+    try {
+      final result = await _headlessWebview?.executeScript(wrappedScript);
+      logEventController
+          .add('[Captcha WebView] Custom script execute result: $result');
+    } catch (e) {
+      KazumiLogger().e('[Captcha WebView] injectCustomScript error: $e');
+      logEventController
+          .add('[Captcha WebView] Custom script inject error: $e');
+    }
+  }
+
   Future<void> _injectButtonClickScript(String buttonXpath) async {
-    final escaped =
-        buttonXpath.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    final escaped = buttonXpath.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
     final script = '''
 (function() {
   window.chrome.webview.postMessage('captchaLog:ButtonClickScript injected on ' + window.location.href);
@@ -379,8 +447,8 @@ class CaptchaWebviewWindowsImpl
   @override
   Future<void> unloadPage() async {
     try {
-      await _headlessWebview?.executeScript(
-          "window.location.href = 'about:blank';");
+      await _headlessWebview
+          ?.executeScript("window.location.href = 'about:blank';");
     } catch (e) {
       KazumiLogger().d('[Captcha WebView] unloadPage skipped: $e');
     }
@@ -391,6 +459,7 @@ class CaptchaWebviewWindowsImpl
     _currentCaptchaImageXpath = '';
     _currentInputXpath = '';
     _buttonXpath = '';
+    _customScript = null;
     buttonWasClicked = false;
     _currentPageUrl = '';
     for (final s in _subscriptions) {

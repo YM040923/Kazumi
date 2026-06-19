@@ -72,6 +72,9 @@ class _SourceSheetState extends State<SourceSheet>
   /// 根据插件的验证类型分发到对应的验证对话框
   void showAntiCrawlerDialog(Plugin plugin) {
     switch (plugin.antiCrawlerConfig.captchaType) {
+      case CaptchaType.customJavaScript:
+        showCustomScriptDialog(plugin);
+        break;
       case CaptchaType.autoClickButton:
         showButtonClickDialog(plugin);
         break;
@@ -275,6 +278,93 @@ class _SourceSheetState extends State<SourceSheet>
           ),
         );
       },
+    );
+  }
+
+  void showCustomScriptDialog(Plugin plugin) {
+    /// flag whether onVerified was fired by the custom-script flow.
+    bool autoVerified = false;
+
+    _captchaProvider?.dispose();
+    _captchaProvider = CaptchaProvider();
+
+    final searchUrl = plugin.searchURL
+        .replaceAll('@keyword', Uri.encodeQueryComponent(keyword));
+
+    void onVerified() {
+      if (autoVerified) return;
+      autoVerified = true;
+      KazumiDialog.dismiss();
+      KazumiDialog.showTimedSuccessDialog(
+        title: '验证成功',
+        message: '正在重新检索，请稍候…',
+        onComplete: () => queryManager?.querySource(keyword, plugin.name),
+      );
+    }
+
+    _captchaProvider!.loadForCustomScript(
+      url: searchUrl,
+      script: plugin.antiCrawlerConfig.captchaScript,
+      pluginName: plugin.name,
+      onVerified: onVerified,
+    );
+
+    KazumiDialog.show(
+      onDismiss: () async {
+        final provider = _captchaProvider;
+        _captchaProvider = null;
+        if (autoVerified) {
+          provider?.dispose();
+        } else {
+          await provider?.saveAndUnload(plugin.name);
+          provider?.dispose();
+          queryManager?.querySource(keyword, plugin.name);
+        }
+      },
+      builder: (context) => Dialog(
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '自动验证中',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${plugin.name} 正在执行验证脚本，请稍候',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 24),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  '已加载验证页面并执行自定义脚本，等待验证通过…',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => KazumiDialog.dismiss(),
+                    child: Text(
+                      '取消',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.outline),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

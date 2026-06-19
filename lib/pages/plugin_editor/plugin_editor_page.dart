@@ -42,13 +42,25 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
   final TextEditingController captchaImageController = TextEditingController();
   final TextEditingController captchaInputController = TextEditingController();
   final TextEditingController captchaButtonController = TextEditingController();
+  final TextEditingController captchaDetectValueController =
+      TextEditingController();
+  final TextEditingController captchaScriptController = TextEditingController();
   bool antiCrawlerEnabled = false;
   int captchaType = CaptchaType.imageCaptcha;
+  int captchaDetectType = CaptchaDetectType.xpath;
   final MenuController captchaTypeMenuController = MenuController();
+  final MenuController captchaDetectTypeMenuController = MenuController();
 
   static const Map<int, String> _captchaTypeMap = {
     CaptchaType.imageCaptcha: '图片验证码',
     CaptchaType.autoClickButton: '自动点击按钮',
+    CaptchaType.customJavaScript: '自定义 JS 验证',
+  };
+
+  static const Map<int, String> _captchaDetectTypeMap = {
+    CaptchaDetectType.xpath: 'XPath',
+    CaptchaDetectType.text: '文本',
+    CaptchaDetectType.regex: '正则',
   };
 
   late final Plugin plugin;
@@ -81,6 +93,10 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     captchaImageController.text = plugin.antiCrawlerConfig.captchaImage;
     captchaInputController.text = plugin.antiCrawlerConfig.captchaInput;
     captchaButtonController.text = plugin.antiCrawlerConfig.captchaButton;
+    captchaDetectType = plugin.antiCrawlerConfig.captchaDetectType;
+    captchaDetectValueController.text =
+        plugin.antiCrawlerConfig.captchaDetectValue;
+    captchaScriptController.text = plugin.antiCrawlerConfig.captchaScript;
   }
 
   @override
@@ -233,6 +249,17 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
               ),
               if (antiCrawlerEnabled) ...[
                 _buildCaptchaTypeTile(),
+                _buildCaptchaDetectTypeTile(),
+                _buildTextFieldTile(
+                  controller: captchaDetectValueController,
+                  label: 'CaptchaDetectValue',
+                  hint: captchaDetectType == CaptchaDetectType.text
+                      ? '身份验证'
+                      : captchaDetectType == CaptchaDetectType.regex
+                          ? '身份验证|smart_verify'
+                          : '//button[@id="verify"]',
+                  helper: '留空时回退到旧的图片/按钮 XPath 检测',
+                ),
                 if (captchaType == CaptchaType.imageCaptcha) ...[
                   _buildTextFieldTile(
                     controller: captchaImageController,
@@ -247,17 +274,27 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                     helper: '验证码输入框元素的 XPath',
                   ),
                 ],
-                _buildTextFieldTile(
-                  controller: captchaButtonController,
-                  label: captchaType == CaptchaType.imageCaptcha
-                      ? 'CaptchaButton (XPath)'
-                      : 'VerifyButton (XPath)',
-                  hint: '//button[@type="submit"]',
-                  helper: captchaType == CaptchaType.imageCaptcha
-                      ? '验证提交按钮元素的 XPath'
-                      : '验证按钮元素的 XPath，检测到后自动点击',
-                  isLast: true,
-                ),
+                if (captchaType != CaptchaType.customJavaScript)
+                  _buildTextFieldTile(
+                    controller: captchaButtonController,
+                    label: captchaType == CaptchaType.imageCaptcha
+                        ? 'CaptchaButton (XPath)'
+                        : 'VerifyButton (XPath)',
+                    hint: '//button[@type="submit"]',
+                    helper: captchaType == CaptchaType.imageCaptcha
+                        ? '验证提交按钮元素的 XPath'
+                        : '验证按钮元素的 XPath，检测到后自动点击',
+                    isLast: true,
+                  ),
+                if (captchaType == CaptchaType.customJavaScript)
+                  _buildTextFieldTile(
+                    controller: captchaScriptController,
+                    label: 'CaptchaScript (JavaScript)',
+                    hint: 'KazumiCaptcha.log("ready"); KazumiCaptcha.done();',
+                    helper: '可调用 KazumiCaptcha.log/clicked/done/fail',
+                    maxLines: 8,
+                    isLast: true,
+                  ),
               ],
             ],
           ),
@@ -293,6 +330,9 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
         captchaImage: captchaImageController.text,
         captchaInput: captchaInputController.text,
         captchaButton: captchaButtonController.text,
+        captchaDetectType: captchaDetectType,
+        captchaDetectValue: captchaDetectValueController.text,
+        captchaScript: captchaScriptController.text,
       ),
     );
   }
@@ -330,6 +370,9 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
       captchaImage: captchaImageController.text,
       captchaInput: captchaInputController.text,
       captchaButton: captchaButtonController.text,
+      captchaDetectType: captchaDetectType,
+      captchaDetectValue: captchaDetectValueController.text,
+      captchaScript: captchaScriptController.text,
     );
     pluginsController.updatePlugin(plugin);
     Navigator.of(context).pop();
@@ -340,6 +383,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     required String label,
     String? hint,
     String? helper,
+    int maxLines = 1,
     bool isLast = false,
   }) {
     return Column(
@@ -352,6 +396,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
           ),
           child: TextField(
             controller: controller,
+            maxLines: maxLines,
             decoration: InputDecoration(
               labelText: label,
               hintText: hint,
@@ -437,6 +482,84 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
               captchaTypeMenuController.close();
             } else {
               captchaTypeMenuController.open();
+            }
+          },
+        ),
+        Divider(
+          height: 1,
+          indent: KazumiSpacing.lg + 22 + KazumiSpacing.md,
+          endIndent: KazumiSpacing.lg,
+          color: scheme.outlineVariant,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCaptchaDetectTypeTile() {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: KazumiSpacing.lg,
+            vertical: 0,
+          ),
+          minVerticalPadding: 0,
+          leading: IconTheme(
+            data: IconThemeData(color: scheme.onSurfaceVariant, size: 22),
+            child: const Icon(Icons.rule_rounded),
+          ),
+          title: Text(
+            '验证页检测方式',
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              color: scheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            '优先使用该标记判断搜索响应是否为验证页',
+            style: TextStyle(
+              fontSize: 12,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          trailing: MenuAnchor(
+            consumeOutsideTap: true,
+            controller: captchaDetectTypeMenuController,
+            builder: (_, __, ___) => Text(
+              _captchaDetectTypeMap[captchaDetectType] ?? '未知',
+            ),
+            menuChildren: [
+              for (final entry in _captchaDetectTypeMap.entries)
+                MenuItemButton(
+                  requestFocusOnHover: false,
+                  onPressed: () =>
+                      setState(() => captchaDetectType = entry.key),
+                  child: Container(
+                    height: 48,
+                    constraints: const BoxConstraints(minWidth: 160),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        entry.value,
+                        style: TextStyle(
+                          color: entry.key == captchaDetectType
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          onTap: () {
+            if (captchaDetectTypeMenuController.isOpen) {
+              captchaDetectTypeMenuController.close();
+            } else {
+              captchaDetectTypeMenuController.open();
             }
           },
         ),
