@@ -15,6 +15,7 @@ import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/bean/widget/error_widget.dart';
 import 'package:kazumi/design/desktop_layout.dart';
 import 'package:kazumi/design/design_tokens.dart';
+import 'package:kazumi/design/kazumi_glass.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 import 'package:kazumi/pages/history/history_controller.dart';
@@ -46,6 +47,7 @@ class _PopularPageState extends State<PopularPage>
   int _selectedSpotlightIndex = 0;
   int _spotlightPageStart = 0;
   bool _refreshing = false;
+  PopularFilterState _posterFilter = const PopularFilterState();
   Timer? _spotlightAutoPlayTimer;
 
   @override
@@ -87,6 +89,10 @@ class _PopularPageState extends State<PopularPage>
     return popularController.currentTag.isEmpty
         ? popularController.trendList.toList()
         : popularController.bangumiList.toList();
+  }
+
+  List<BangumiItem> _buildFilteredGridItems(List<BangumiItem> list) {
+    return filterPopularBangumiItems(list, _posterFilter);
   }
 
   List<History> _recentHistories() {
@@ -200,6 +206,23 @@ class _PopularPageState extends State<PopularPage>
     Modular.to.pushNamed('/info/', arguments: item);
   }
 
+  Future<void> _showPosterFilterSheet() async {
+    final result = await showModalBottomSheet<PopularFilterState>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PosterFilterSheet(initialFilter: _posterFilter),
+    );
+    if (result == null || result == _posterFilter) return;
+    setState(() {
+      _posterFilter = result;
+      _selectedSpotlightIndex = 0;
+      _spotlightPageStart = 0;
+    });
+  }
+
   void onBackPressed(BuildContext context) {
     if (KazumiDialog.observer.hasKazumiDialog) {
       KazumiDialog.dismiss();
@@ -230,6 +253,7 @@ class _PopularPageState extends State<PopularPage>
         body: Observer(
           builder: (_) {
             final list = _currentList();
+            final filteredGridItems = _buildFilteredGridItems(list);
             final showRemoteError = popularController.isTimeOut && list.isEmpty;
             final loading = popularController.isLoadingMore || _refreshing;
 
@@ -255,7 +279,7 @@ class _PopularPageState extends State<PopularPage>
                           : '正在浏览 ${popularController.currentTag} 分类下的作品。',
                       count: list.length,
                       loading: loading && list.isEmpty,
-                      child: _buildTagChips(scheme),
+                      child: _buildPosterWallToolbar(scheme),
                     ),
                   ),
                   if (list.isEmpty)
@@ -263,7 +287,7 @@ class _PopularPageState extends State<PopularPage>
                   else
                     _buildGrid(
                       popularGridItemsExcludingSpotlight(
-                        list,
+                        filteredGridItems,
                         spotlightStart: _spotlightPageStart,
                         spotlightSize: _spotlightWindowSize,
                       ),
@@ -509,6 +533,52 @@ class _PopularPageState extends State<PopularPage>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPosterWallToolbar(ColorScheme scheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildTagChips(scheme)),
+            const SizedBox(width: 12),
+            FilledButton.tonalIcon(
+              onPressed: _showPosterFilterSheet,
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('筛选'),
+            ),
+          ],
+        ),
+        _buildActiveFilterChips(scheme),
+      ],
+    );
+  }
+
+  Widget _buildActiveFilterChips(ColorScheme scheme) {
+    final labels = _posterFilter.activeLabels;
+    if (labels.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final label in labels)
+            InputChip(
+              label: Text(label),
+              avatar:
+                  Icon(Icons.check_rounded, size: 16, color: scheme.primary),
+              onDeleted: () {
+                setState(() => _posterFilter = const PopularFilterState());
+              },
+              deleteIcon: const Icon(Icons.close_rounded, size: 16),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1453,6 +1523,165 @@ class _MediaFilterHeader extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _PosterFilterSheet extends StatefulWidget {
+  const _PosterFilterSheet({required this.initialFilter});
+
+  final PopularFilterState initialFilter;
+
+  @override
+  State<_PosterFilterSheet> createState() => _PosterFilterSheetState();
+}
+
+class _PosterFilterSheetState extends State<_PosterFilterSheet> {
+  late PopularFilterState _draft = widget.initialFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      child: KazumiGlassSurface(
+        borderRadius: KazumiRadius.containerBorder,
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.tune_rounded, color: scheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '海报墙筛选',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: scheme.onSurface,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() => _draft = const PopularFilterState());
+                    },
+                    child: const Text('清除'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _FilterSection<PopularSortMode>(
+                title: '排序',
+                values: PopularSortMode.values,
+                selected: _draft.sort,
+                labelFor: (value) => value.label,
+                onSelected: (value) {
+                  setState(() => _draft = _draft.copyWith(sort: value));
+                },
+              ),
+              const SizedBox(height: 14),
+              _FilterSection<PopularYearFilter>(
+                title: '年份',
+                values: PopularYearFilter.values,
+                selected: _draft.year,
+                labelFor: (value) => value.label,
+                onSelected: (value) {
+                  setState(() => _draft = _draft.copyWith(year: value));
+                },
+              ),
+              const SizedBox(height: 14),
+              _FilterSection<PopularAirStatusFilter>(
+                title: '状态',
+                values: PopularAirStatusFilter.values,
+                selected: _draft.status,
+                labelFor: (value) => value.label,
+                onSelected: (value) {
+                  setState(() => _draft = _draft.copyWith(status: value));
+                },
+              ),
+              const SizedBox(height: 14),
+              _FilterSection<PopularVisibilityFilter>(
+                title: '只看',
+                values: PopularVisibilityFilter.values,
+                selected: _draft.visibility,
+                labelFor: (value) => value.label,
+                onSelected: (value) {
+                  setState(() => _draft = _draft.copyWith(visibility: value));
+                },
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('取消'),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(_draft),
+                    child: const Text('应用'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterSection<T> extends StatelessWidget {
+  const _FilterSection({
+    required this.title,
+    required this.values,
+    required this.selected,
+    required this.labelFor,
+    required this.onSelected,
+  });
+
+  final String title;
+  final List<T> values;
+  final T selected;
+  final String Function(T value) labelFor;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final value in values)
+              ChoiceChip(
+                label: Text(labelFor(value)),
+                selected: value == selected,
+                onSelected: (_) => onSelected(value),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

@@ -1,9 +1,40 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/bangumi/bangumi_tag.dart';
 import 'package:kazumi/pages/popular/popular_layout.dart';
 
 void main() {
+  BangumiItem item({
+    required int id,
+    required String title,
+    required String date,
+    required double score,
+    required int rank,
+    List<String> tags = const [],
+  }) {
+    return BangumiItem(
+      id: id,
+      type: 2,
+      name: title,
+      nameCn: title,
+      summary: '',
+      airDate: date,
+      airWeekday: 1,
+      rank: rank,
+      images: const {'large': ''},
+      tags: tags
+          .map((tag) => BangumiTag(name: tag, count: 1, totalCount: 1))
+          .toList(),
+      alias: const [],
+      ratingScore: score,
+      votes: 0,
+      votesCount: const [],
+      info: '',
+    );
+  }
+
   test('poster grid column count follows available content width', () {
     expect(popularPosterGridColumnCount(520), 3);
     expect(popularPosterGridColumnCount(700), 4);
@@ -150,5 +181,47 @@ void main() {
     expect(backdropSource, isNot(contains('Image.network')));
     expect(backdropSource, isNot(contains('width: double.infinity')));
     expect(backdropSource, isNot(contains('height: double.infinity')));
+  });
+
+  test('discover poster wall filters and sorts local Bangumi results', () {
+    final items = [
+      item(id: 1, title: 'A', date: '2026-04-01', score: 7.8, rank: 120),
+      item(id: 2, title: 'B', date: '2025-01-01', score: 8.7, rank: 40),
+      item(id: 3, title: 'C', date: '2025-07-01', score: 0, rank: 0),
+      item(id: 4, title: 'D', date: '2024-10-01', score: 8.1, rank: 0),
+    ];
+
+    final result = filterPopularBangumiItems(
+      items,
+      const PopularFilterState(
+        sort: PopularSortMode.score,
+        year: PopularYearFilter.year2025,
+        visibility: PopularVisibilityFilter.rated,
+      ),
+    );
+
+    expect(result.map((item) => item.id), [2]);
+    expect(const PopularFilterState().hasActiveFilters, isFalse);
+    expect(
+      const PopularFilterState(
+        sort: PopularSortMode.score,
+        year: PopularYearFilter.year2025,
+      ).activeLabels,
+      containsAll(['评分优先', '2025']),
+    );
+  });
+
+  test('discover page exposes a compact filter surface for poster wall', () {
+    final source =
+        File('lib/pages/popular/popular_page.dart').readAsStringSync();
+
+    expect(source, contains('_buildFilteredGridItems'));
+    expect(source, contains('_showPosterFilterSheet'));
+    expect(source, contains('_PosterFilterSheet'));
+    expect(source, contains('_buildActiveFilterChips'));
+    expect(source, contains('Icons.tune_rounded'));
+    expect(source, contains('筛选'));
+    expect(source, contains('清除'));
+    expect(source, contains('应用'));
   });
 }
