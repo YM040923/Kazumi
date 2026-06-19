@@ -53,26 +53,51 @@ void main() {
     expect(infoCardSource, isNot(contains('letterSpacing: -0.5')));
   });
 
-  test('detail header keeps actions in a compact footer to avoid overflow', () {
+  test('detail header keeps collect and tags inside the information column',
+      () {
     final infoCardSource = File('lib/bean/card/bangumi_info_card.dart')
         .readAsStringSync()
         .replaceAll('\r\n', '\n');
 
-    expect(infoCardSource, contains('class _DetailFooter'));
-    expect(infoCardSource, contains('scrollDirection: Axis.horizontal'));
+    expect(infoCardSource, contains('class _InfoActionRow'));
     expect(infoCardSource,
         contains('_TagStrip(tags: bangumiItem.tags, dense: true)'));
+    expect(infoCardSource, isNot(contains('class _DetailFooter')));
+    expect(infoCardSource, isNot(contains('scrollDirection: Axis.horizontal')));
     expect(
         infoCardSource, isNot(contains('width: 220,\n            height: 42')));
   });
 
-  test('detail tabs use a compact segmented bar instead of a full-width rail',
-      () {
+  test('detail header does not stretch synopsis into empty space', () {
+    final infoCardSource = File('lib/bean/card/bangumi_info_card.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
+
+    expect(infoCardSource,
+        contains('crossAxisAlignment: CrossAxisAlignment.start'));
+    expect(infoCardSource, contains('mainAxisSize: MainAxisSize.min'));
+    expect(infoCardSource, contains('maxLines: compact ? 3 : 5'));
+    expect(
+        infoCardSource,
+        isNot(contains(
+            'Flexible(\n            child: SizedBox(\n              width: double.infinity,\n              child: _SynopsisPanel(summary: summary),')));
+  });
+
+  test('detail tabs live with the content instead of the app bar header', () {
     final infoPageSource =
         File('lib/pages/info/info_page.dart').readAsStringSync();
+    final tabViewSource =
+        File('lib/pages/info/info_tabview.dart').readAsStringSync();
 
     expect(infoPageSource, contains('class _DetailSegmentedTabBar'));
-    expect(infoPageSource, contains('PreferredSize('));
+    expect(infoPageSource, isNot(contains('bottom: PreferredSize(')));
+    expect(
+        infoPageSource,
+        isNot(contains(
+            '_detailHeaderHeight(context) +\n                            _detailSegmentedTabBarHeight')));
+    expect(infoPageSource, contains('tabBar: _DetailSegmentedTabBar('));
+    expect(tabViewSource, contains('final Widget tabBar;'));
+    expect(tabViewSource, contains('SliverToBoxAdapter(child: widget.tabBar)'));
     expect(infoPageSource, contains('maxWidth: 360'));
     expect(infoPageSource, contains('indicatorSize: TabBarIndicatorSize.tab'));
     expect(

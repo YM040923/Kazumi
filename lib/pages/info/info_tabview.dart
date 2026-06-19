@@ -24,6 +24,7 @@ class InfoTabView extends StatefulWidget {
     required this.staffQueryTimeout,
     required this.staffIsEmpty,
     required this.tabController,
+    required this.tabBar,
     required this.loadEpisodes,
     required this.openSourceSheet,
     required this.selectEpisodeRoad,
@@ -47,6 +48,7 @@ class InfoTabView extends StatefulWidget {
   final bool staffQueryTimeout;
   final bool staffIsEmpty;
   final TabController tabController;
+  final Widget tabBar;
   final Future<void> Function() loadEpisodes;
   final VoidCallback openSourceSheet;
   final ValueChanged<int> selectEpisodeRoad;
@@ -71,10 +73,14 @@ class _InfoTabViewState extends State<InfoTabView> {
         SliverOverlapInjector(
           handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
         ),
+        SliverToBoxAdapter(child: widget.tabBar),
         ...slivers,
       ];
     } catch (_) {
-      return slivers;
+      return [
+        SliverToBoxAdapter(child: widget.tabBar),
+        ...slivers,
+      ];
     }
   }
 

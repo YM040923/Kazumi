@@ -129,7 +129,7 @@ class _EditorialShelfPanel extends StatelessWidget {
 
   Widget _wideLayout(BuildContext context, {required bool showChart}) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _PosterFrame(bangumiItem: bangumiItem, width: showChart ? 214 : 188),
         const SizedBox(width: 24),
@@ -313,57 +313,49 @@ class _DetailColumn extends StatelessWidget {
         ),
         if (showSynopsis && !compact) ...[
           const SizedBox(height: 14),
-          Flexible(
-            child: SizedBox(
-              width: double.infinity,
-              child: _SynopsisPanel(summary: summary),
-            ),
+          SizedBox(
+            width: double.infinity,
+            child: _SynopsisPanel(summary: summary),
           ),
         ] else if (showSynopsis) ...[
           const SizedBox(height: 14),
           _SynopsisPanel(summary: summary, compact: true),
         ],
         if (!compact) ...[
-          const SizedBox(height: 10),
-          _DetailFooter(bangumiItem: bangumiItem),
+          const SizedBox(height: 12),
+          _InfoActionRow(bangumiItem: bangumiItem),
         ],
       ],
     );
   }
 }
 
-class _DetailFooter extends StatelessWidget {
-  const _DetailFooter({required this.bangumiItem});
+class _InfoActionRow extends StatelessWidget {
+  const _InfoActionRow({required this.bangumiItem});
 
   final BangumiItem bangumiItem;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: _TagStrip(tags: bangumiItem.tags, dense: true),
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _TagStrip(tags: bangumiItem.tags, dense: true),
+        SizedBox(
+          height: 36,
+          child: CollectButton.extend(
+            bangumiItem: bangumiItem,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
             ),
           ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 36,
-            child: CollectButton.extend(
-              bangumiItem: bangumiItem,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -394,7 +386,7 @@ class _SynopsisPanel extends StatelessWidget {
         padding: EdgeInsets.all(compact ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '简介',
@@ -406,7 +398,7 @@ class _SynopsisPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               normalizedSummary.isEmpty ? '暂无简介' : normalizedSummary,
-              maxLines: compact ? 3 : 6,
+              maxLines: compact ? 3 : 5,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,

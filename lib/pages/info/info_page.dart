@@ -471,21 +471,13 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                     stretch: true,
                     centerTitle: false,
                     expandedHeight: (Platform.isMacOS && showWindowButton)
-                        ? _detailHeaderHeight(context) +
-                            _detailSegmentedTabBarHeight +
-                            kToolbarHeight +
-                            22
-                        : _detailHeaderHeight(context) +
-                            _detailSegmentedTabBarHeight +
-                            kToolbarHeight,
+                        ? _detailHeaderHeight(context) + kToolbarHeight + 22
+                        : _detailHeaderHeight(context) + kToolbarHeight,
                     collapsedHeight: (Platform.isMacOS && showWindowButton)
-                        ? _detailSegmentedTabBarHeight +
-                            kToolbarHeight +
+                        ? kToolbarHeight +
                             MediaQuery.paddingOf(context).top +
                             22
-                        : _detailSegmentedTabBarHeight +
-                            kToolbarHeight +
-                            MediaQuery.paddingOf(context).top,
+                        : kToolbarHeight + MediaQuery.paddingOf(context).top,
                     flexibleSpace: FlexibleSpaceBar(
                       collapseMode: CollapseMode.pin,
                       background: Observer(builder: (context) {
@@ -496,7 +488,6 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                             // No background image when loading to make loading looks better
                             if (!showBangumiInfoSkeleton)
                               Positioned.fill(
-                                bottom: _detailSegmentedTabBarHeight,
                                 child: IgnorePointer(
                                   child: _InfoHeaderBackground(
                                     imageUrl: infoController
@@ -527,15 +518,6 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                       }),
                     ),
                     forceElevated: innerBoxIsScrolled,
-                    bottom: PreferredSize(
-                      preferredSize: const Size.fromHeight(
-                        _detailSegmentedTabBarHeight,
-                      ),
-                      child: _DetailSegmentedTabBar(
-                        controller: infoTabController,
-                        tabs: tabs,
-                      ),
-                    ),
                   ),
                 ),
               ];
@@ -544,6 +526,10 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
               final showBangumiInfoSkeleton = _isShowingBangumiInfoSkeleton;
               return InfoTabView(
                 tabController: infoTabController,
+                tabBar: _DetailSegmentedTabBar(
+                  controller: infoTabController,
+                  tabs: tabs,
+                ),
                 bangumiItem: infoController.bangumiItem,
                 episodesIsLoading: episodesIsLoading,
                 episodesQueryTimeout: episodesQueryTimeout,

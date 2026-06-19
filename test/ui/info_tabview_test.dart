@@ -47,6 +47,7 @@ void main() {
                     staffQueryTimeout: false,
                     staffIsEmpty: false,
                     tabController: tabController,
+                    tabBar: const SizedBox.shrink(),
                     loadEpisodes: () async {},
                     openSourceSheet: () {},
                     selectEpisodeRoad: (_) {},
@@ -109,6 +110,7 @@ void main() {
                     staffQueryTimeout: false,
                     staffIsEmpty: false,
                     tabController: tabController,
+                    tabBar: const SizedBox.shrink(),
                     loadEpisodes: () async {},
                     openSourceSheet: () {
                       openedSourceSheet = true;
