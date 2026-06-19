@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
-import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/pages/menu/menu.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/pages/timeline/timeline_controller.dart';
@@ -852,16 +851,14 @@ class _TimelinePageState extends State<TimelinePage>
             children: [
               Observer(
                 builder: (context) {
-                  return WindowControlInset(
-                    child: _TimelineHeader(
-                      controller: tabController,
-                      tabs: tabs,
-                      seasonLabel: timelineController.seasonString,
-                      sortLabel: getSortTypeLabel(timelineController.sortType),
-                      enabledFilterCount: getEnabledTimelineFilterCount(),
-                      onSeasonTap: () => showSeasonBottomSheet(context),
-                      onOptionsTap: () => _showTimelineOptionsSheet(context),
-                    ),
+                  return _TimelineHeader(
+                    controller: tabController,
+                    tabs: tabs,
+                    seasonLabel: timelineController.seasonString,
+                    sortLabel: getSortTypeLabel(timelineController.sortType),
+                    enabledFilterCount: getEnabledTimelineFilterCount(),
+                    onSeasonTap: () => showSeasonBottomSheet(context),
+                    onOptionsTap: () => _showTimelineOptionsSheet(context),
                   );
                 },
               ),
@@ -1026,16 +1023,14 @@ class _TimelineHeader extends StatelessWidget {
     return Material(
       color: scheme.surface.withValues(alpha: 0.62),
       child: dtb.DragToMoveArea(
-        child: SafeArea(
-          bottom: false,
-          child: KazumiDesktopPageFrame(
-            maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 14, 0, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+        child: KazumiDesktopHeaderFrame(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 14, 0, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KazumiDesktopHeaderTopRow(
+                  child: Row(
                     children: [
                       Container(
                         width: 48,
@@ -1098,8 +1093,12 @@ class _TimelineHeader extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  KazumiGlassSurface(
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 1,
+                  child: KazumiGlassSurface(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 8,
@@ -1108,6 +1107,8 @@ class _TimelineHeader extends StatelessWidget {
                     child: TabBar(
                       controller: controller,
                       tabs: tabs,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
                       dividerHeight: 0,
                       indicatorSize: TabBarIndicatorSize.tab,
                       indicator: BoxDecoration(
@@ -1127,8 +1128,8 @@ class _TimelineHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

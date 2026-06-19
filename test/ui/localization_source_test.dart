@@ -173,7 +173,10 @@ void main() {
       searchSource,
       settingsSource,
     ]) {
-      expect(source, contains('WindowControlInset'));
+      expect(
+        source,
+        contains(RegExp(r'WindowControlInset|KazumiDesktopHeaderTopRow')),
+      );
     }
     expect(displayModeSource, contains('KazumiSettingsPageShell'));
     expect(storageErrorSource, contains('KazumiDesktopPageFrame'));
@@ -204,7 +207,10 @@ void main() {
       searchSource,
       settingsSource,
     ]) {
-      expect(source, contains('WindowControlInset'));
+      expect(
+        source,
+        contains(RegExp(r'WindowControlInset|KazumiDesktopHeaderTopRow')),
+      );
       expect(source, isNot(contains('DesktopWindowControlHost')));
       expect(source, isNot(contains('const DesktopWindowControls()')));
       expect(
@@ -257,7 +263,7 @@ void main() {
     final source = File('lib/pages/my/my_page.dart').readAsStringSync();
 
     for (final marker in [
-      'KazumiDesktopPageFrame',
+      'KazumiDesktopScrollFrame',
       'KazumiDesktopShell.mediaPageMaxWidth',
       '_SettingsSectionGrid',
       '_SettingsCategoryIndex',
@@ -500,8 +506,8 @@ void main() {
 
     for (final marker in [
       'KazumiSettingsPageShell',
-      'WindowControlInset',
-      'KazumiDesktopPageFrame',
+      'KazumiDesktopScrollFrame',
+      'KazumiDesktopHeaderTopRow',
       'KazumiGlassSurface',
       'dtb.DragToMoveArea',
     ]) {

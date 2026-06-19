@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/design/desktop_layout.dart';
 import 'package:kazumi/design/kazumi_glass.dart';
@@ -44,53 +43,43 @@ class _MyPageState extends State<MyPage> {
         onBackPressed(context);
       },
       child: Scaffold(
-        body: WindowControlInset(
-          child: SafeArea(
-            top: false,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              children: [
-                KazumiDesktopPageFrame(
-                  maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final useWideLayout = constraints.maxWidth >= 1040;
-                      final content = _SettingsSectionGrid(
-                        sections: sections,
-                        useWideLayout: useWideLayout,
-                      );
+        body: KazumiDesktopScrollFrame(
+          maxWidth: KazumiDesktopShell.mediaPageMaxWidth,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final useWideLayout = constraints.maxWidth >= 1040;
+              final content = _SettingsSectionGrid(
+                sections: sections,
+                useWideLayout: useWideLayout,
+              );
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const _SettingsHeader(),
-                          const SizedBox(height: 18),
-                          if (useWideLayout)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: 248,
-                                  child: _SettingsCategoryIndex(
-                                    sections: sections,
-                                  ),
-                                ),
-                                const SizedBox(width: 18),
-                                Expanded(child: content),
-                              ],
-                            )
-                          else ...[
-                            _SettingsCategoryIndex(sections: sections),
-                            const SizedBox(height: 14),
-                            content,
-                          ],
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SettingsHeader(),
+                  const SizedBox(height: 18),
+                  if (useWideLayout)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 248,
+                          child: _SettingsCategoryIndex(
+                            sections: sections,
+                          ),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(child: content),
+                      ],
+                    )
+                  else ...[
+                    _SettingsCategoryIndex(sections: sections),
+                    const SizedBox(height: 14),
+                    content,
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -218,46 +207,48 @@ class _SettingsHeader extends StatelessWidget {
 
     return KazumiGlassSurface(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(14),
+      child: KazumiDesktopHeaderTopRow(
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                Icons.tune_rounded,
+                color: scheme.onPrimaryContainer,
+              ),
             ),
-            child: Icon(
-              Icons.tune_rounded,
-              color: scheme.onPrimaryContainer,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '\u8bbe\u7f6e',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w900,
+                          height: 1.15,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '\u7ba1\u7406\u64ad\u653e\u3001\u8d44\u6599\u5e93、外观与同步等偏好。',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.45,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '\u8bbe\u7f6e',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '\u7ba1\u7406\u64ad\u653e\u3001\u8d44\u6599\u5e93、外观与同步等偏好。',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -285,16 +276,25 @@ class _SettingsSectionGrid extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: 18,
-      runSpacing: 18,
-      children: [
-        for (final section in sections)
-          SizedBox(
-            width: 424,
-            child: _SettingsSection(section: section),
-          ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 18.0;
+        final columns = constraints.maxWidth >= 900 ? 2 : 1;
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final section in sections)
+              SizedBox(
+                width: cardWidth,
+                child: _SettingsSection(section: section),
+              ),
+          ],
+        );
+      },
     );
   }
 }

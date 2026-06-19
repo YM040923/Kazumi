@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/design/adaptive_layout.dart';
 
 class KazumiDesktopShell {
@@ -57,5 +58,84 @@ class KazumiDesktopPageFrame extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class KazumiDesktopScrollFrame extends StatelessWidget {
+  const KazumiDesktopScrollFrame({
+    super.key,
+    required this.child,
+    this.maxWidth = KazumiDesktopShell.mediaPageMaxWidth,
+    this.horizontalPadding,
+    this.topPadding = 18,
+    this.bottomPadding = 32,
+  });
+
+  final Widget child;
+  final double maxWidth;
+  final double? horizontalPadding;
+  final double topPadding;
+  final double bottomPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: ListView(
+          padding: EdgeInsets.only(
+            top: topPadding,
+            bottom: bottomPadding,
+          ),
+          children: [
+            KazumiDesktopPageFrame(
+              maxWidth: maxWidth,
+              horizontalPadding: horizontalPadding,
+              child: child,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class KazumiDesktopHeaderFrame extends StatelessWidget {
+  const KazumiDesktopHeaderFrame({
+    super.key,
+    required this.child,
+    this.maxWidth = KazumiDesktopShell.mediaPageMaxWidth,
+    this.horizontalPadding,
+  });
+
+  final Widget child;
+  final double maxWidth;
+  final double? horizontalPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: KazumiDesktopPageFrame(
+        maxWidth: maxWidth,
+        horizontalPadding: horizontalPadding,
+        child: child,
+      ),
+    );
+  }
+}
+
+class KazumiDesktopHeaderTopRow extends StatelessWidget {
+  const KazumiDesktopHeaderTopRow({
+    super.key,
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return WindowControlInset(child: child);
   }
 }
