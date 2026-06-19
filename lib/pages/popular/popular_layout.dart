@@ -86,6 +86,147 @@ class PopularFilterState {
       visibility: visibility ?? this.visibility,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is PopularFilterState &&
+        other.sort == sort &&
+        other.year == year &&
+        other.status == status &&
+        other.visibility == visibility;
+  }
+
+  @override
+  int get hashCode => Object.hash(sort, year, status, visibility);
+}
+
+class PopularBangumiSearchQuery {
+  const PopularBangumiSearchQuery({
+    this.keyword = '',
+    required this.sort,
+    required this.tags,
+    required this.rank,
+    required this.airDate,
+  });
+
+  final String keyword;
+  final String sort;
+  final List<String> tags;
+  final List<String> rank;
+  final List<String> airDate;
+}
+
+PopularBangumiSearchQuery buildPopularBangumiSearchQuery(
+  PopularFilterState filter, {
+  required String currentTag,
+  DateTime? now,
+}) {
+  final normalizedTag = currentTag.trim();
+  final dateRange = _mergeDateRanges(
+    _yearDateRange(filter.year),
+    _statusDateRange(filter.status, now ?? DateTime.now()),
+  );
+
+  return PopularBangumiSearchQuery(
+    sort: _bangumiSortFor(filter.sort),
+    tags: normalizedTag.isEmpty ? const [] : [normalizedTag],
+    rank: _rankRangeFor(filter),
+    airDate: dateRange.toBangumiFilter(),
+  );
+}
+
+String _bangumiSortFor(PopularSortMode sort) {
+  return switch (sort) {
+    PopularSortMode.hot => 'heat',
+    PopularSortMode.score => 'score',
+    PopularSortMode.rank => 'rank',
+    // Bangumi search does not expose a stable date sort in the existing app.
+    // Pull a broad ranked set, then apply the local date sort below.
+    PopularSortMode.latest => 'rank',
+  };
+}
+
+List<String> _rankRangeFor(PopularFilterState filter) {
+  final needsRankedResults = filter.sort == PopularSortMode.rank ||
+      filter.sort == PopularSortMode.score ||
+      filter.visibility == PopularVisibilityFilter.ranked ||
+      filter.visibility == PopularVisibilityFilter.rated;
+  return needsRankedResults
+      ? const ['>0', '<=99999']
+      : const ['>=0', '<=99999'];
+}
+
+_DateRange? _yearDateRange(PopularYearFilter year) {
+  return switch (year) {
+    PopularYearFilter.all => null,
+    PopularYearFilter.year2026 => _DateRange(
+        start: DateTime(2026),
+        end: DateTime(2027),
+      ),
+    PopularYearFilter.year2025 => _DateRange(
+        start: DateTime(2025),
+        end: DateTime(2026),
+      ),
+    PopularYearFilter.year2024 => _DateRange(
+        start: DateTime(2024),
+        end: DateTime(2025),
+      ),
+    PopularYearFilter.older => _DateRange(end: DateTime(2024)),
+  };
+}
+
+_DateRange? _statusDateRange(PopularAirStatusFilter status, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  return switch (status) {
+    PopularAirStatusFilter.all => null,
+    PopularAirStatusFilter.upcoming => _DateRange(start: today),
+    PopularAirStatusFilter.airing => _DateRange(
+        start: today.subtract(const Duration(days: 120)),
+        end: today.add(const Duration(days: 1)),
+      ),
+    PopularAirStatusFilter.finished => _DateRange(
+        end: today.subtract(const Duration(days: 120)),
+      ),
+  };
+}
+
+_DateRange _mergeDateRanges(_DateRange? first, _DateRange? second) {
+  if (first == null && second == null) return const _DateRange();
+  if (first == null) return second!;
+  if (second == null) return first;
+
+  final start = switch ((first.start, second.start)) {
+    (null, final DateTime value) => value,
+    (final DateTime value, null) => value,
+    (final DateTime a, final DateTime b) => a.isAfter(b) ? a : b,
+    _ => null,
+  };
+  final end = switch ((first.end, second.end)) {
+    (null, final DateTime value) => value,
+    (final DateTime value, null) => value,
+    (final DateTime a, final DateTime b) => a.isBefore(b) ? a : b,
+    _ => null,
+  };
+  return _DateRange(start: start, end: end);
+}
+
+class _DateRange {
+  const _DateRange({this.start, this.end});
+
+  final DateTime? start;
+  final DateTime? end;
+
+  List<String> toBangumiFilter() {
+    return [
+      if (start != null) '>=${_formatBangumiDate(start!)}',
+      if (end != null) '<${_formatBangumiDate(end!)}',
+    ];
+  }
+}
+
+String _formatBangumiDate(DateTime date) {
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  return '${date.year}-${twoDigits(date.month)}-${twoDigits(date.day)}';
 }
 
 double popularPosterGridGap(double contentWidth) {

@@ -77,7 +77,9 @@ class _PopularPageState extends State<PopularPage>
     if (scrollController.position.pixels >=
             scrollController.position.maxScrollExtent - 200 &&
         !popularController.isLoadingMore) {
-      if (popularController.currentTag.isEmpty) {
+      if (_posterFilter.hasActiveFilters) {
+        popularController.queryBangumiByFilter(_posterFilter);
+      } else if (popularController.currentTag.isEmpty) {
         popularController.queryBangumiByTrend();
       } else {
         popularController.queryBangumiByTag();
@@ -86,6 +88,9 @@ class _PopularPageState extends State<PopularPage>
   }
 
   List<BangumiItem> _currentList() {
+    if (_posterFilter.hasActiveFilters) {
+      return popularController.bangumiList.toList();
+    }
     return popularController.currentTag.isEmpty
         ? popularController.trendList.toList()
         : popularController.bangumiList.toList();
@@ -109,7 +114,12 @@ class _PopularPageState extends State<PopularPage>
     try {
       final changed = _advanceSpotlightWindow();
       if (!changed) {
-        if (popularController.currentTag.isEmpty) {
+        if (_posterFilter.hasActiveFilters) {
+          await popularController.queryBangumiByFilter(
+            _posterFilter,
+            type: 'init',
+          );
+        } else if (popularController.currentTag.isEmpty) {
           await popularController.queryBangumiByTrend(type: 'init');
         } else {
           await popularController.queryBangumiByTag(type: 'init');
@@ -140,7 +150,10 @@ class _PopularPageState extends State<PopularPage>
       );
     }
 
-    if (tag.isEmpty) {
+    if (_posterFilter.hasActiveFilters) {
+      popularController.clearBangumiList();
+      await popularController.queryBangumiByFilter(_posterFilter, type: 'init');
+    } else if (tag.isEmpty) {
       popularController.clearBangumiList();
       await popularController.queryBangumiByTrend(type: 'init');
     } else {
@@ -216,11 +229,32 @@ class _PopularPageState extends State<PopularPage>
       builder: (context) => _PosterFilterSheet(initialFilter: _posterFilter),
     );
     if (result == null || result == _posterFilter) return;
+    await _applyPosterFilter(result);
+  }
+
+  Future<void> _applyPosterFilter(PopularFilterState filter) async {
     setState(() {
-      _posterFilter = result;
+      _posterFilter = filter;
       _selectedSpotlightIndex = 0;
       _spotlightPageStart = 0;
     });
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: KazumiDurations.normal,
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    if (filter.hasActiveFilters) {
+      await popularController.queryBangumiByFilter(filter, type: 'init');
+    } else if (popularController.currentTag.isEmpty) {
+      popularController.clearBangumiList();
+      await popularController.queryBangumiByTrend(type: 'init');
+    } else {
+      await popularController.queryBangumiByTag(type: 'init');
+    }
+    _restartSpotlightAutoPlay();
   }
 
   void onBackPressed(BuildContext context) {
@@ -252,10 +286,18 @@ class _PopularPageState extends State<PopularPage>
         backgroundColor: Colors.transparent,
         body: Observer(
           builder: (_) {
-            final list = _currentList();
-            final filteredGridItems = _buildFilteredGridItems(list);
-            final showRemoteError = popularController.isTimeOut && list.isEmpty;
+            final sourceList = _currentList();
+            final visibleList = _buildFilteredGridItems(sourceList);
             final loading = popularController.isLoadingMore || _refreshing;
+            final showRemoteError = popularController.isTimeOut &&
+                sourceList.isEmpty &&
+                !_posterFilter.hasActiveFilters &&
+                !loading;
+            final waitingForFirstPage = sourceList.isEmpty && loading;
+            final hasFilteredEmpty = _posterFilter.hasActiveFilters &&
+                sourceList.isNotEmpty &&
+                visibleList.isEmpty &&
+                !loading;
 
             return CustomScrollView(
               controller: scrollController,
@@ -264,10 +306,10 @@ class _PopularPageState extends State<PopularPage>
                 if (showRemoteError)
                   _buildRemoteError()
                 else ...[
-                  if (list.isEmpty)
+                  if (waitingForFirstPage)
                     _buildLoadingSpotlight(scheme)
-                  else
-                    _buildSpotlightBoard(scheme, list, loading),
+                  else if (visibleList.isNotEmpty)
+                    _buildSpotlightBoard(scheme, visibleList, loading),
                   SliverToBoxAdapter(child: _buildContinueWatchingStrip()),
                   SliverToBoxAdapter(
                     child: _TrendCategoryBar(
@@ -277,22 +319,24 @@ class _PopularPageState extends State<PopularPage>
                       subtitle: popularController.currentTag.isEmpty
                           ? '从 Bangumi 热门条目里挑选最近值得打开的内容。'
                           : '正在浏览 ${popularController.currentTag} 分类下的作品。',
-                      count: list.length,
-                      loading: loading && list.isEmpty,
+                      count: visibleList.length,
+                      loading: loading && sourceList.isEmpty,
                       child: _buildPosterWallToolbar(scheme),
                     ),
                   ),
-                  if (list.isEmpty)
+                  if (waitingForFirstPage)
                     _buildLoadingPosterGrid(scheme)
+                  else if (sourceList.isEmpty || hasFilteredEmpty)
+                    _buildFilterEmptyState(scheme)
                   else
                     _buildGrid(
                       popularGridItemsExcludingSpotlight(
-                        filteredGridItems,
+                        visibleList,
                         spotlightStart: _spotlightPageStart,
                         spotlightSize: _spotlightWindowSize,
                       ),
                     ),
-                  if (popularController.isLoadingMore && list.isNotEmpty)
+                  if (popularController.isLoadingMore && sourceList.isNotEmpty)
                     const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.all(18),
@@ -573,7 +617,7 @@ class _PopularPageState extends State<PopularPage>
               avatar:
                   Icon(Icons.check_rounded, size: 16, color: scheme.primary),
               onDeleted: () {
-                setState(() => _posterFilter = const PopularFilterState());
+                _applyPosterFilter(const PopularFilterState());
               },
               deleteIcon: const Icon(Icons.close_rounded, size: 16),
             ),
@@ -657,6 +701,81 @@ class _PopularPageState extends State<PopularPage>
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterEmptyState(ColorScheme scheme) {
+    final hasFilters = _posterFilter.hasActiveFilters;
+    return SliverToBoxAdapter(
+      child: _DesktopContentFrame(
+        top: 10,
+        bottom: 24,
+        child: KazumiGlassSurface(
+          borderRadius: KazumiRadius.containerBorder,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasFilters
+                        ? Icons.filter_alt_off_rounded
+                        : Icons.movie_filter_rounded,
+                    size: 38,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    hasFilters ? '没有符合筛选的作品' : '暂时没有加载到作品',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    hasFilters
+                        ? 'Bangumi 没有返回当前组合的结果，可以清除筛选或换一组条件。'
+                        : '请稍后重试，或检查当前分类是否可用。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      if (hasFilters)
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            _applyPosterFilter(const PopularFilterState());
+                          },
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          label: const Text('清除筛选'),
+                        ),
+                      FilledButton.icon(
+                        onPressed: _retryCurrentView,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('重新加载'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

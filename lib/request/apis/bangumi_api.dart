@@ -167,24 +167,50 @@ class BangumiApi {
       {List<String> tags = const [],
       int offset = 0,
       String sort = 'heat'}) async {
+    return searchBangumiSubjects(
+      keyword: keyword,
+      tags: tags,
+      rank: sort == 'rank' ? const [">0", "<=99999"] : const [">=0", "<=99999"],
+      offset: offset,
+      sort: sort,
+      limit: 20,
+      requireChineseTitle: true,
+    );
+  }
+
+  static Future<List<BangumiItem>> searchBangumiSubjects({
+    String keyword = '',
+    List<String> tags = const [],
+    List<String> rank = const [">=0", "<=99999"],
+    List<String> airDate = const [],
+    int offset = 0,
+    int limit = 20,
+    String sort = 'heat',
+    bool requireChineseTitle = false,
+  }) async {
     List<BangumiItem> bangumiList = [];
+
+    final filter = <String, dynamic>{
+      "type": [2],
+      "tag": tags,
+      "rank": rank,
+      "nsfw": false
+    };
+    if (airDate.isNotEmpty) {
+      filter["air_date"] = airDate;
+    }
 
     var params = <String, dynamic>{
       'keyword': keyword,
       'sort': sort,
-      "filter": {
-        "type": [2],
-        "tag": tags,
-        "rank": (sort == 'rank') ? [">0", "<=99999"] : [">=0", "<=99999"],
-        "nsfw": false
-      },
+      "filter": filter,
     };
 
     try {
       final jsonData = await _client.post(
         ApiEndpoints.formatUrl(
             ApiEndpoints.bangumiAPIDomain + ApiEndpoints.bangumiRankSearch,
-            [20, offset]),
+            [limit, offset]),
         data: params,
       );
       final jsonList = jsonData['data'];
@@ -192,7 +218,7 @@ class BangumiApi {
         if (jsonItem is Map<String, dynamic>) {
           try {
             BangumiItem bangumiItem = BangumiItem.fromJson(jsonItem);
-            if (bangumiItem.nameCn != '') {
+            if (!requireChineseTitle || bangumiItem.nameCn != '') {
               bangumiList.add(bangumiItem);
             }
           } catch (e) {

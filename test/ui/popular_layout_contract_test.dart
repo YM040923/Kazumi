@@ -211,6 +211,49 @@ void main() {
     );
   });
 
+  test('discover poster filter builds Bangumi search request parameters', () {
+    final query = buildPopularBangumiSearchQuery(
+      const PopularFilterState(
+        sort: PopularSortMode.score,
+        year: PopularYearFilter.year2025,
+        visibility: PopularVisibilityFilter.ranked,
+      ),
+      currentTag: '原创',
+      now: DateTime(2026, 6, 19),
+    );
+
+    expect(query.sort, 'score');
+    expect(query.tags, ['原创']);
+    expect(query.airDate, ['>=2025-01-01', '<2026-01-01']);
+    expect(query.rank, ['>0', '<=99999']);
+  });
+
+  test('discover page connects poster filters to Bangumi search source', () {
+    final pageSource =
+        File('lib/pages/popular/popular_page.dart').readAsStringSync();
+    final controllerSource =
+        File('lib/pages/popular/popular_controller.dart').readAsStringSync();
+    final apiSource =
+        File('lib/request/apis/bangumi_api.dart').readAsStringSync();
+
+    expect(pageSource, contains('_applyPosterFilter'));
+    expect(pageSource, contains('_buildFilterEmptyState'));
+    expect(pageSource, contains('queryBangumiByFilter'));
+    expect(
+        pageSource,
+        isNot(contains(
+            'if (list.isEmpty)\n                    _buildLoadingPosterGrid')));
+
+    expect(controllerSource, contains('queryBangumiByFilter'));
+    expect(controllerSource, contains('buildPopularBangumiSearchQuery'));
+    expect(controllerSource, contains('BangumiApi.searchBangumiSubjects'));
+    expect(controllerSource, contains('offset: bangumiList.length'));
+
+    expect(apiSource, contains('searchBangumiSubjects'));
+    expect(apiSource, contains('"air_date"'));
+    expect(apiSource, contains('[limit, offset]'));
+  });
+
   test('discover page exposes a compact filter surface for poster wall', () {
     final source =
         File('lib/pages/popular/popular_page.dart').readAsStringSync();
