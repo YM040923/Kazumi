@@ -222,6 +222,7 @@ class _PosterFrame extends StatelessWidget {
                 src: bangumiItem.images['large'] ?? '',
                 width: width,
                 height: width / 0.68,
+                quality: 150,
                 fadeInDuration: Duration.zero,
                 fadeOutDuration: Duration.zero,
               ),

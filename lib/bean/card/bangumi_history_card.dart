@@ -63,14 +63,13 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
       return;
     }
     videoPageController.bangumiItem = widget.historyItem.bangumiItem;
-    videoPageController.title =
-        widget.historyItem.bangumiItem.nameCn == ''
-            ? widget.historyItem.bangumiItem.name
-            : widget.historyItem.bangumiItem.nameCn;
+    videoPageController.title = widget.historyItem.bangumiItem.nameCn == ''
+        ? widget.historyItem.bangumiItem.name
+        : widget.historyItem.bangumiItem.nameCn;
     videoPageController.src = widget.historyItem.lastSrc;
     try {
-      await videoPageController.queryRoads(widget.historyItem.lastSrc,
-          videoPageController.currentPlugin.name);
+      await videoPageController.queryRoads(
+          widget.historyItem.lastSrc, videoPageController.currentPlugin.name);
       KazumiDialog.dismiss();
       Modular.to.pushNamed('/video/');
     } catch (_) {
@@ -88,10 +87,9 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
     final String title = widget.historyItem.bangumiItem.nameCn == ''
         ? widget.historyItem.bangumiItem.name
         : widget.historyItem.bangumiItem.nameCn;
-    final String episodeText =
-        widget.historyItem.lastWatchEpisodeName.isEmpty
-            ? '第${widget.historyItem.lastWatchEpisode}话'
-            : widget.historyItem.lastWatchEpisodeName;
+    final String episodeText = widget.historyItem.lastWatchEpisodeName.isEmpty
+        ? '第${widget.historyItem.lastWatchEpisode}话'
+        : widget.historyItem.lastWatchEpisodeName;
 
     return Dismissible(
       key: ValueKey(widget.historyItem.key),
@@ -133,6 +131,7 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
                     src: widget.historyItem.bangumiItem.images['large'] ?? '',
                     width: imageWidth,
                     height: imageHeight,
+                    quality: 140,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -203,8 +202,11 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              Utils.formatTimestampToRelativeTime(
-                                  widget.historyItem.lastWatchTime.millisecondsSinceEpoch ~/ 1000),
+                              Utils.formatTimestampToRelativeTime(widget
+                                      .historyItem
+                                      .lastWatchTime
+                                      .millisecondsSinceEpoch ~/
+                                  1000),
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: colorScheme.outline,
                               ),

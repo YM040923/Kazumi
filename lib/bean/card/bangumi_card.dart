@@ -59,12 +59,14 @@ class BangumiCardV extends StatelessWidget {
                                                   bangumiItem.images['large'] ??
                                                       '',
                                               width: bc.maxWidth,
-                                              height: bc.maxHeight))
+                                              height: bc.maxHeight,
+                                              quality: 140))
                                       : NetworkImgLayer(
                                           src:
                                               bangumiItem.images['large'] ?? '',
                                           width: bc.maxWidth,
-                                          height: bc.maxHeight)),
+                                          height: bc.maxHeight,
+                                          quality: 140)),
                               Positioned(
                                   bottom: 0,
                                   left: 0,

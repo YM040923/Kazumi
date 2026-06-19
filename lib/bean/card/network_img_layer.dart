@@ -32,6 +32,9 @@ class NetworkImgLayer extends StatelessWidget {
   final Color? color;
   final BlendMode? colorBlendMode;
 
+  static const int _defaultDecodeQuality = 100;
+  static const int _maxDecodePixels = 4096;
+
   static Widget heroFlightShuttleBuilder(
     BuildContext flightContext,
     Animation<double> animation,
@@ -65,23 +68,48 @@ class NetworkImgLayer extends StatelessWidget {
             _resolveImageExtent(height, constraints.maxHeight);
         final String imageUrl = src ?? '';
 
-        //// We need this to shink memory usage
+        //// We need this to shrink memory usage while keeping poster art sharp.
         int? memCacheWidth, memCacheHeight;
-        double aspectRatio = (resolvedWidth / resolvedHeight).toDouble();
+        final double aspectRatio = (resolvedWidth / resolvedHeight).toDouble();
+        final double decodeScale = _decodeScaleFromQuality(quality);
 
         void setMemCacheSizes() {
           if (aspectRatio > 1) {
-            memCacheHeight = resolvedHeight.cacheSize(context);
+            memCacheHeight = _cacheSizeFor(
+              context,
+              resolvedHeight,
+              decodeScale: decodeScale,
+            );
           } else if (aspectRatio < 1) {
-            memCacheWidth = resolvedWidth.cacheSize(context);
+            memCacheWidth = _cacheSizeFor(
+              context,
+              resolvedWidth,
+              decodeScale: decodeScale,
+            );
           } else {
             if (origAspectRatio != null && origAspectRatio! > 1) {
-              memCacheWidth = resolvedWidth.cacheSize(context);
+              memCacheWidth = _cacheSizeFor(
+                context,
+                resolvedWidth,
+                decodeScale: decodeScale,
+              );
             } else if (origAspectRatio != null && origAspectRatio! < 1) {
-              memCacheHeight = resolvedHeight.cacheSize(context);
+              memCacheHeight = _cacheSizeFor(
+                context,
+                resolvedHeight,
+                decodeScale: decodeScale,
+              );
             } else {
-              memCacheWidth = resolvedWidth.cacheSize(context);
-              memCacheHeight = resolvedHeight.cacheSize(context);
+              memCacheWidth = _cacheSizeFor(
+                context,
+                resolvedWidth,
+                decodeScale: decodeScale,
+              );
+              memCacheHeight = _cacheSizeFor(
+                context,
+                resolvedHeight,
+                decodeScale: decodeScale,
+              );
             }
           }
         }
@@ -147,6 +175,20 @@ class NetworkImgLayer extends StatelessWidget {
     if (requested.isFinite && requested > 0) return requested;
     if (constraint.isFinite && constraint > 0) return constraint;
     return 1;
+  }
+
+  double _decodeScaleFromQuality(int? quality) {
+    final safeQuality = (quality ?? _defaultDecodeQuality).clamp(50, 200);
+    return safeQuality / _defaultDecodeQuality;
+  }
+
+  int _cacheSizeFor(
+    BuildContext context,
+    double extent, {
+    required double decodeScale,
+  }) {
+    final scaledExtent = (extent * decodeScale).clamp(1, _maxDecodePixels);
+    return scaledExtent.cacheSize(context).clamp(1, _maxDecodePixels).round();
   }
 
   Widget placeholder(
