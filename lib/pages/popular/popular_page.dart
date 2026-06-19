@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -780,93 +779,98 @@ class _SpotlightBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final imageUrl = _bangumiPosterImage(item);
 
     return Positioned.fill(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  scheme.primaryContainer.withValues(alpha: 0.20),
-                  scheme.surfaceContainerHighest.withValues(alpha: 0.34),
-                  scheme.secondaryContainer.withValues(alpha: 0.18),
-                ],
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FractionallySizedBox(
-              widthFactor: 0.58,
-              heightFactor: 1,
-              child: _SpotlightBackdropPoster(imageUrl: imageUrl),
-            ),
-          ),
-        ],
+      child: IgnorePointer(
+        child: _SpotlightAmbientPlane(scheme: scheme),
       ),
     );
   }
 }
 
-class _SpotlightBackdropPoster extends StatelessWidget {
-  const _SpotlightBackdropPoster({required this.imageUrl});
+class _SpotlightAmbientPlane extends StatelessWidget {
+  const _SpotlightAmbientPlane({required this.scheme});
 
-  final String imageUrl;
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    if (imageUrl.isEmpty) return const SizedBox.shrink();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final height = constraints.maxHeight;
-        if (!height.isFinite || height <= 0) {
-          return const SizedBox.shrink();
-        }
-
-        final posterWidth = height * 0.68;
-
-        return Align(
-          alignment: Alignment.center,
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 9, sigmaY: 9),
-            child: Opacity(
-              opacity:
-                  Theme.of(context).brightness == Brightness.dark ? 0.52 : 0.36,
-              child: ShaderMask(
-                blendMode: BlendMode.dstIn,
-                shaderCallback: (bounds) {
-                  return const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.transparent,
-                      Colors.white,
-                      Colors.white,
-                      Colors.transparent,
-                    ],
-                    stops: [0, 0.18, 0.82, 1],
-                  ).createShader(bounds);
-                },
-                child: SizedBox(
-                  width: posterWidth,
-                  height: height,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.medium,
-                  ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                scheme.surface.withValues(alpha: isDark ? 0.80 : 0.88),
+                scheme.primaryContainer.withValues(alpha: isDark ? 0.18 : 0.20),
+                scheme.secondaryContainer.withValues(
+                  alpha: isDark ? 0.12 : 0.16,
+                ),
+                scheme.surface.withValues(alpha: isDark ? 0.66 : 0.74),
+              ],
+              stops: const [0, 0.42, 0.74, 1],
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FractionallySizedBox(
+            widthFactor: 0.54,
+            heightFactor: 0.86,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.24, -0.12),
+                  radius: 0.86,
+                  colors: [
+                    scheme.primary.withValues(alpha: isDark ? 0.18 : 0.16),
+                    scheme.tertiary.withValues(alpha: isDark ? 0.12 : 0.10),
+                    Colors.transparent,
+                  ],
+                  stops: const [0, 0.44, 1],
+                ),
+                backgroundBlendMode: BlendMode.softLight,
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0.72, -0.42),
+          child: FractionallySizedBox(
+            widthFactor: 0.30,
+            heightFactor: 0.34,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: isDark ? 0.08 : 0.26),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.white.withValues(alpha: isDark ? 0.02 : 0.18),
+                Colors.transparent,
+                scheme.surface.withValues(alpha: isDark ? 0.24 : 0.28),
+              ],
+              stops: const [0, 0.58, 1],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

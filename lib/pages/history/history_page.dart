@@ -90,6 +90,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         count: historyController.histories.length,
                         showDelete: showDelete,
                         hasHistory: historyController.histories.isNotEmpty,
+                        onBack: () => Modular.to.pop(),
                         onToggleEdit: () {
                           setState(() {
                             showDelete = !showDelete;
@@ -168,6 +169,7 @@ class _HistoryHeader extends StatelessWidget {
     required this.count,
     required this.showDelete,
     required this.hasHistory,
+    required this.onBack,
     required this.onToggleEdit,
     required this.onClearAll,
   });
@@ -175,6 +177,7 @@ class _HistoryHeader extends StatelessWidget {
   final int count;
   final bool showDelete;
   final bool hasHistory;
+  final VoidCallback onBack;
   final VoidCallback onToggleEdit;
   final VoidCallback onClearAll;
 
@@ -188,62 +191,72 @@ class _HistoryHeader extends StatelessWidget {
       child: dtb.DragToMoveArea(
         child: KazumiGlassSurface(
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(14),
+          child: KazumiDesktopHeaderTopRow(
+            child: Row(
+              children: [
+                IconButton.filledTonal(
+                  onPressed: onBack,
+                  tooltip: '返回',
+                  icon: const Icon(Icons.arrow_back_rounded),
                 ),
-                child: Icon(
-                  Icons.history_rounded,
-                  color: scheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '历史记录',
-                      style: textTheme.headlineSmall?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      count == 0 ? '继续观看和播放记录会在这里汇总。' : '共 $count 条观看记录。',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (hasHistory) ...[
                 const SizedBox(width: 12),
-                IconButton.filledTonal(
-                  onPressed: onToggleEdit,
-                  icon: Icon(
-                    showDelete ? Icons.edit_off_outlined : Icons.edit_outlined,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  tooltip: showDelete ? '退出编辑' : '编辑',
+                  child: Icon(
+                    Icons.history_rounded,
+                    color: scheme.onPrimaryContainer,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: onClearAll,
-                  icon: const Icon(Icons.delete_sweep_outlined),
-                  tooltip: '清除全部',
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '历史记录',
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: scheme.onSurface,
+                          fontWeight: FontWeight.w900,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        count == 0 ? '继续观看和播放记录会在这里汇总。' : '共 $count 条观看记录。',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.45,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                if (hasHistory) ...[
+                  const SizedBox(width: 12),
+                  IconButton.filledTonal(
+                    onPressed: onToggleEdit,
+                    icon: Icon(
+                      showDelete
+                          ? Icons.edit_off_outlined
+                          : Icons.edit_outlined,
+                    ),
+                    tooltip: showDelete ? '退出编辑' : '编辑',
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: onClearAll,
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    tooltip: '清除全部',
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

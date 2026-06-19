@@ -130,8 +130,7 @@ void main() {
     expect(copySource, contains('final tight'));
   });
 
-  test(
-      'discover spotlight backdrop preserves poster aspect instead of covering',
+  test('discover spotlight backdrop uses clean ambient stage instead of blur',
       () {
     final source =
         File('lib/pages/popular/popular_page.dart').readAsStringSync();
@@ -141,8 +140,14 @@ void main() {
       source.indexOf('class _SpotlightCopy'),
     );
 
-    expect(backdropSource, contains('_SpotlightBackdropPoster'));
-    expect(backdropSource, contains('BoxFit.contain'));
+    expect(backdropSource, contains('_SpotlightAmbientPlane'));
+    expect(backdropSource, contains('BlendMode.softLight'));
+    expect(backdropSource, contains('LinearGradient'));
+    expect(backdropSource, contains('IgnorePointer'));
+    expect(backdropSource, isNot(contains('_SpotlightBackdropPoster')));
+    expect(backdropSource, isNot(contains('ImageFiltered')));
+    expect(backdropSource, isNot(contains('ImageFilter.blur')));
+    expect(backdropSource, isNot(contains('Image.network')));
     expect(backdropSource, isNot(contains('width: double.infinity')));
     expect(backdropSource, isNot(contains('height: double.infinity')));
   });
