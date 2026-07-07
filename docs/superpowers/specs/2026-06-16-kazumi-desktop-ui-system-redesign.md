@@ -30,7 +30,7 @@ The design language is:
 
 ## Non-Goals
 
-- Do not change playback engines, parsers, rules, downloads, database fields, or WinUI POC work.
+- Do not change playback engines, parsers, rules, downloads, or database fields.
 - Do not introduce a landing page or marketing-style hero page.
 - Do not redesign every settings subpage before the shell and page frame are fixed.
 - Do not continue dark-mode/detail-page experimentation until the global responsive contract exists.

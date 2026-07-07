@@ -2,7 +2,7 @@
 
 ## Goal
 
-Improve the existing Flutter Kazumi app with a first-phase "Fluent Cinema Shell" polish pass focused on the real user-facing product, not the WinUI3 rewrite POC.
+Improve the existing Flutter Kazumi app with a first-phase "Fluent Cinema Shell" polish pass focused on the real user-facing product.
 
 The first phase targets the homepage, anime detail page, and play-entry flow. The app should feel closer to a modern Windows media client on desktop while still adapting naturally to mobile and tablet layouts.
 
@@ -64,7 +64,6 @@ Search-led and episode-first ideas remain supporting details, but they do not re
 
 ### Out of Scope
 
-- No WinUI3 POC UI work.
 - No player-engine rewrite.
 - No source/rule parser changes.
 - No collection sync, download, Danmaku, or WebDAV behavior changes.
@@ -265,5 +264,5 @@ Phase one is successful when:
 
 The next plan should cover only the first-phase Flutter UI work described here.
 
-Do not plan WinUI POC UI work in this branch. Do not plan playback-core changes. Do not plan broad settings/search/timeline/collection redesigns beyond small supporting updates required by the selected homepage, detail page, and source sheet flow.
+Do not plan playback-core changes. Do not plan broad settings/search/timeline/collection redesigns beyond small supporting updates required by the selected homepage, detail page, and source sheet flow.
 

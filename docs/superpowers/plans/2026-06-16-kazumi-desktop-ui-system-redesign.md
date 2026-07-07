@@ -18,7 +18,7 @@ Use this spec as the source of truth:
 
 ## Scope Check
 
-This plan covers Flutter UI structure only. It intentionally excludes WinUI, playback core, parser/rule behavior, download internals, and database schema changes.
+This plan covers Flutter UI structure only. It intentionally excludes playback core, parser/rule behavior, download internals, and database schema changes.
 
 Because the current worktree already contains partially completed UI changes, each task must read current files before editing and must not revert unrelated user or prior-agent changes.
 
