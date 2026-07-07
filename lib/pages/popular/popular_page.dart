@@ -388,69 +388,86 @@ class _PopularPageState extends State<PopularPage>
       backgroundColor: scheme.surface.withValues(alpha: 0.62),
       surfaceTintColor: Colors.transparent,
       titleSpacing: 0,
-      actions: [
-        WindowControlTopActionArea(
-          child: WindowControlInset(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: '搜索',
-                  icon: const Icon(Icons.search_rounded),
-                  onPressed: () => Modular.to.pushNamed('/search/'),
-                ),
-                IconButton(
-                  tooltip: '观看历史',
-                  icon: const Icon(Icons.history_rounded),
-                  onPressed: () => Modular.to.pushNamed('/settings/history/'),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-          ),
-        ),
-      ],
       flexibleSpace: SafeArea(
         bottom: false,
         child: dtb.DragToMoveArea(
           child: WindowControlInset(
             child: Padding(
-              padding: const EdgeInsets.only(left: 24, top: 10, bottom: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '发现',
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                        letterSpacing: 0,
-                      ),
+              padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
+              child: Row(
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '发现',
+                          style: TextStyle(
+                            color: scheme.onSurface,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            height: 1.05,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '精选推荐、继续观看和热门作品',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '精选推荐、继续观看和热门作品',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const Spacer(flex: 2),
+                  _buildDiscoveryHeaderActions(scheme),
+                  const Spacer(flex: 3),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDiscoveryHeaderActions(ColorScheme scheme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _DiscoverySearchPill(
+          onPressed: () => Modular.to.pushNamed('/search/'),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: '观看历史',
+          icon: const Icon(Icons.history_rounded),
+          style: IconButton.styleFrom(
+            fixedSize: const Size(44, 44),
+            backgroundColor: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.46,
+            ),
+            foregroundColor: scheme.onSurfaceVariant,
+            hoverColor: scheme.primary.withValues(alpha: 0.10),
+            highlightColor: scheme.primary.withValues(alpha: 0.14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
+          onPressed: () => Modular.to.pushNamed('/settings/history/'),
+        ),
+      ],
     );
   }
 
@@ -1940,6 +1957,70 @@ class _StatusPill extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DiscoverySearchPill extends StatelessWidget {
+  const _DiscoverySearchPill({
+    required this.onPressed,
+  });
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: 220,
+        maxWidth: 360,
+      ),
+      child: Material(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.46),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          hoverColor: scheme.primary.withValues(alpha: 0.08),
+          highlightColor: scheme.primary.withValues(alpha: 0.12),
+          child: SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_rounded,
+                    size: 22,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '搜索作品',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

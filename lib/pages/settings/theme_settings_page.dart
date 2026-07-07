@@ -141,6 +141,16 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     _applyStoredTheme();
   }
 
+  Future<void> _syncDesktopTitleBarStyle() async {
+    if (!Utils.isDesktop()) return;
+    await windowManager.setTitleBarStyle(
+      (Platform.isMacOS || !showWindowButton)
+          ? TitleBarStyle.hidden
+          : TitleBarStyle.normal,
+      windowButtonVisibility: showWindowButton,
+    );
+  }
+
   String _currentThemePresetLabel() {
     final preset = KazumiThemePreset.fromStorageValue(defaultThemeColor);
     if (preset != null) return preset.label;
@@ -249,7 +259,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                             SettingsSwitchTile(
                               leading: const Icon(Icons.window_rounded),
                               title: '使用系统标题栏',
-                              subtitle: '重启应用生效',
+                              subtitle: '切换原生窗口栏和应用内窗口按钮',
                               value: showWindowButton,
                               onChanged: (value) async {
                                 showWindowButton = value;
@@ -257,6 +267,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                                   SettingBoxKey.showWindowButton,
                                   showWindowButton,
                                 );
+                                await _syncDesktopTitleBarStyle();
                                 setState(() {});
                               },
                               isLast: !Platform.isAndroid,
@@ -407,6 +418,12 @@ class _ThemeSettingsHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
           child: Row(
             children: [
+              IconButton.filledTonal(
+                onPressed: () => Modular.to.pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: '返回',
+              ),
+              const SizedBox(width: 12),
               Container(
                 width: 48,
                 height: 48,

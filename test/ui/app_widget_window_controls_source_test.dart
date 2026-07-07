@@ -14,4 +14,14 @@ void main() {
     expect(source,
         isNot(contains('return DesktopWindowControlsOverlay(child: app);')));
   });
+
+  test('appearance settings synchronizes native and custom window buttons', () {
+    final source =
+        File('lib/pages/settings/theme_settings_page.dart').readAsStringSync();
+
+    expect(source, contains('windowManager.setTitleBarStyle'));
+    expect(source, contains('TitleBarStyle.normal'));
+    expect(source, contains('TitleBarStyle.hidden'));
+    expect(source, contains('windowButtonVisibility: showWindowButton'));
+  });
 }

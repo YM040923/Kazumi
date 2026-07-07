@@ -133,9 +133,19 @@ void main() {
     );
     expect(appBarSource, isNot(contains('DesktopWindowActionRail')));
     expect(appBarSource, isNot(contains('DesktopWindowControls')));
-    expect(appBarSource, contains('WindowControlTopActionArea'));
+    expect(appBarSource, isNot(contains('WindowControlTopActionArea')));
     expect(appBarSource, contains('toolbarHeight: 72'));
     expect(appBarSource, contains('WindowControlInset'));
+    expect(appBarSource, contains('_buildDiscoveryHeaderActions'));
+    expect(appBarSource, contains('_DiscoverySearchPill'));
+    expect(appBarSource, contains('const Spacer(flex: 2)'));
+    expect(appBarSource, contains('const Spacer(flex: 3)'));
+    expect(appBarSource, contains('观看历史'));
+    expect(appBarSource, contains('Icons.history_rounded'));
+    expect(appBarSource, isNot(contains('IconButton.filledTonal(')));
+    expect(source, contains('搜索作品'));
+    expect(source, contains('ConstrainedBox'));
+    expect(source, contains('Icons.search_rounded'));
 
     final featuredPosterSource = source.substring(
       source.indexOf('class _FeaturedPoster'),

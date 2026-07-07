@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 import 'package:kazumi/bean/appbar/window_control_inset.dart';
@@ -160,6 +161,12 @@ class _InterfaceSettingsHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
           child: Row(
             children: [
+              IconButton.filledTonal(
+                onPressed: () => Modular.to.pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: '返回',
+              ),
+              const SizedBox(width: 12),
               Container(
                 width: 48,
                 height: 48,

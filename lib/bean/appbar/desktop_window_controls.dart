@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/utils.dart';
 import 'package:window_manager/window_manager.dart';
@@ -69,19 +68,23 @@ class DesktopWindowControls extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _windowButton(
+          context: context,
           tooltip: '最小化',
           onPressed: () => windowManager.minimize(),
           icon: const _CenteredMinimizeIcon(),
         ),
         _windowButton(
+          context: context,
           tooltip: '最大化/还原',
           onPressed: _toggleMaximizeWindow,
           icon: const Icon(Icons.crop_square_rounded),
         ),
         _windowButton(
+          context: context,
           tooltip: '关闭',
           onPressed: () => windowManager.close(),
           icon: const Icon(Icons.close_rounded),
+          isClose: true,
         ),
         if (trailingSpacing > 0) SizedBox(width: trailingSpacing),
       ],
@@ -89,10 +92,13 @@ class DesktopWindowControls extends StatelessWidget {
   }
 
   Widget _windowButton({
+    required BuildContext context,
     required String tooltip,
     required VoidCallback onPressed,
     required Widget icon,
+    bool isClose = false,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return IconButton(
       tooltip: tooltip,
       constraints: const BoxConstraints.tightFor(
@@ -100,6 +106,16 @@ class DesktopWindowControls extends StatelessWidget {
         height: WindowControlMetrics.controlHeight,
       ),
       padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        foregroundColor: colorScheme.onSurfaceVariant,
+        hoverColor: isClose
+            ? Colors.red.withValues(alpha: 0.12)
+            : colorScheme.onSurface.withValues(alpha: 0.08),
+        highlightColor: isClose
+            ? Colors.red.withValues(alpha: 0.18)
+            : colorScheme.onSurface.withValues(alpha: 0.12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
       onPressed: onPressed,
       icon: icon,
     );
@@ -177,6 +193,7 @@ class _OverlayWindowControls extends StatelessWidget {
           context: context,
           onPressed: () => windowManager.close(),
           icon: const Icon(Icons.close_rounded),
+          isClose: true,
         ),
       ],
     );
@@ -186,13 +203,25 @@ class _OverlayWindowControls extends StatelessWidget {
     required BuildContext context,
     required VoidCallback onPressed,
     required Widget icon,
+    bool isClose = false,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return IconButton(
       constraints: const BoxConstraints.tightFor(
         width: WindowControlMetrics.buttonWidth,
         height: WindowControlMetrics.controlHeight,
       ),
       padding: EdgeInsets.zero,
+      style: IconButton.styleFrom(
+        foregroundColor: colorScheme.onSurfaceVariant,
+        hoverColor: isClose
+            ? Colors.red.withValues(alpha: 0.12)
+            : colorScheme.onSurface.withValues(alpha: 0.08),
+        highlightColor: isClose
+            ? Colors.red.withValues(alpha: 0.18)
+            : colorScheme.onSurface.withValues(alpha: 0.12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
       onPressed: onPressed,
       icon: icon,
     );
