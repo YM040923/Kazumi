@@ -17,6 +17,8 @@ class DesktopWindowButtonMode {
   static final ValueNotifier<bool> showNativeButtons = ValueNotifier<bool>(
     GStorage.setting.get(SettingBoxKey.showWindowButton, defaultValue: false),
   );
+  static final ValueNotifier<bool> suppressOverlayControls =
+      ValueNotifier<bool>(false);
 
   static void syncFromStorage() {
     showNativeButtons.value = GStorage.setting
@@ -25,6 +27,10 @@ class DesktopWindowButtonMode {
 
   static void setShowNativeButtons(bool value) {
     showNativeButtons.value = value;
+  }
+
+  static void setSuppressOverlayControls(bool value) {
+    suppressOverlayControls.value = value;
   }
 }
 
@@ -158,24 +164,29 @@ class DesktopWindowControlsOverlay extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: DesktopWindowButtonMode.showNativeButtons,
       builder: (context, showNativeButtons, _) {
-        return Stack(
-          children: [
-            child,
-            if (!showNativeButtons)
-              const Positioned(
-                top: 0,
-                right: 0,
-                child: SafeArea(
-                  bottom: false,
-                  left: false,
-                  child: SizedBox(
-                    width: WindowControlMetrics.controlWidth,
-                    height: WindowControlMetrics.controlHeight,
-                    child: _OverlayWindowControls(),
+        return ValueListenableBuilder<bool>(
+          valueListenable: DesktopWindowButtonMode.suppressOverlayControls,
+          builder: (context, suppressOverlayControls, _) {
+            return Stack(
+              children: [
+                child,
+                if (!showNativeButtons && !suppressOverlayControls)
+                  const Positioned(
+                    top: 0,
+                    right: 0,
+                    child: SafeArea(
+                      bottom: false,
+                      left: false,
+                      child: SizedBox(
+                        width: WindowControlMetrics.controlWidth,
+                        height: WindowControlMetrics.controlHeight,
+                        child: _OverlayWindowControls(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

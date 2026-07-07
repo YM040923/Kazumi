@@ -13,6 +13,7 @@ import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/utils/utils.dart';
 import 'package:kazumi/utils/pip_utils.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:screen_brightness_platform_interface/screen_brightness_platform_interface.dart';
 import 'package:scrollview_observer/scrollview_observer.dart';
@@ -70,6 +71,7 @@ class _VideoPageState extends State<VideoPage>
   @override
   void initState() {
     super.initState();
+    DesktopWindowButtonMode.setSuppressOverlayControls(true);
     windowManager.addListener(this);
     // Check fullscreen when enter video page
     // in case user use system controls to enter fullscreen outside video page
@@ -171,7 +173,8 @@ class _VideoPageState extends State<VideoPage>
     videoPageController.showTabBody = true;
 
     var progress = historyController.lastWatching(
-        videoPageController.bangumiItem, videoPageController.currentPlugin.name);
+        videoPageController.bangumiItem,
+        videoPageController.currentPlugin.name);
     if (videoPageController.applyPendingEpisodeSelectionIfValid()) {
       progress = null;
     } else if (progress != null) {
@@ -209,6 +212,7 @@ class _VideoPageState extends State<VideoPage>
 
   @override
   void dispose() {
+    DesktopWindowButtonMode.setSuppressOverlayControls(false);
     try {
       windowManager.removeListener(this);
     } catch (_) {}

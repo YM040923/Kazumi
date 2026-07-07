@@ -30,4 +30,18 @@ void main() {
     expect(
         controlsSource, contains('DesktopWindowButtonMode.showNativeButtons'));
   });
+
+  test('video page suppresses global window overlay controls', () {
+    final controlsSource =
+        File('lib/bean/appbar/desktop_window_controls.dart').readAsStringSync();
+    final videoSource =
+        File('lib/pages/video/video_page.dart').readAsStringSync();
+
+    expect(controlsSource, contains('suppressOverlayControls'));
+    expect(controlsSource, contains('setSuppressOverlayControls'));
+    expect(videoSource,
+        contains('DesktopWindowButtonMode.setSuppressOverlayControls(true)'));
+    expect(videoSource,
+        contains('DesktopWindowButtonMode.setSuppressOverlayControls(false)'));
+  });
 }
