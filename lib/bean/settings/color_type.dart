@@ -94,3 +94,25 @@ const List<KazumiThemePreset> colorThemeTypes = [
     darkSurface: Color(0xFF100E1D),
   ),
 ];
+
+const Map<String, Color> mediaThemePresetSeeds = {
+  'midnightNeon': Color(0xFF00A7D8),
+  'blueCinema': Color(0xFF3D6FB6),
+  'filmTeal': Color(0xFF1F8A7A),
+  'sakuraNoir': Color(0xFFD8577F),
+  'auroraScreen': Color(0xFF8C7CF6),
+};
+
+Color resolveStoredThemeColor(String? value) {
+  final stored = value ?? 'default';
+  if (stored == 'default') return defaultThemePreset.primary;
+
+  final preset = KazumiThemePreset.fromStorageValue(stored);
+  if (preset != null) return preset.primary;
+
+  try {
+    return Color(int.parse(stored, radix: 16));
+  } catch (_) {
+    return defaultThemePreset.primary;
+  }
+}
