@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/card/palette_card.dart';
 import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
+import 'package:kazumi/bean/appbar/desktop_window_controls.dart';
 import 'package:kazumi/bean/appbar/window_control_inset.dart';
 import 'package:kazumi/bean/widget/settings_components.dart';
 import 'package:kazumi/design/desktop_layout.dart';
@@ -143,6 +144,7 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
 
   Future<void> _syncDesktopTitleBarStyle() async {
     if (!Utils.isDesktop()) return;
+    DesktopWindowButtonMode.setShowNativeButtons(showWindowButton);
     await windowManager.setTitleBarStyle(
       (Platform.isMacOS || !showWindowButton)
           ? TitleBarStyle.hidden

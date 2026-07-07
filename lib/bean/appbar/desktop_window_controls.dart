@@ -11,6 +11,23 @@ class WindowControlMetrics {
   static const double controlWidth = buttonWidth * 3;
 }
 
+class DesktopWindowButtonMode {
+  DesktopWindowButtonMode._();
+
+  static final ValueNotifier<bool> showNativeButtons = ValueNotifier<bool>(
+    GStorage.setting.get(SettingBoxKey.showWindowButton, defaultValue: false),
+  );
+
+  static void syncFromStorage() {
+    showNativeButtons.value = GStorage.setting
+        .get(SettingBoxKey.showWindowButton, defaultValue: false);
+  }
+
+  static void setShowNativeButtons(bool value) {
+    showNativeButtons.value = value;
+  }
+}
+
 class DesktopWindowActionRail extends StatelessWidget {
   const DesktopWindowActionRail({
     super.key,
@@ -21,23 +38,24 @@ class DesktopWindowActionRail extends StatelessWidget {
   final List<Widget> actions;
   final double trailingSpacing;
 
-  bool get _showNativeWindowButton {
-    return GStorage.setting
-        .get(SettingBoxKey.showWindowButton, defaultValue: false);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final showCustomControls = Utils.isDesktop() && !_showNativeWindowButton;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        ...actions,
-        if (showCustomControls) const DesktopWindowControls(trailingSpacing: 0),
-        if (trailingSpacing > 0) SizedBox(width: trailingSpacing),
-      ],
+    DesktopWindowButtonMode.syncFromStorage();
+    return ValueListenableBuilder<bool>(
+      valueListenable: DesktopWindowButtonMode.showNativeButtons,
+      builder: (context, showNativeButtons, _) {
+        final showCustomControls = Utils.isDesktop() && !showNativeButtons;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ...actions,
+            if (showCustomControls)
+              const DesktopWindowControls(trailingSpacing: 0),
+            if (trailingSpacing > 0) SizedBox(width: trailingSpacing),
+          ],
+        );
+      },
     );
   }
 }
@@ -136,23 +154,30 @@ class DesktopWindowControlsOverlay extends StatelessWidget {
       return child;
     }
 
-    return Stack(
-      children: [
-        child,
-        const Positioned(
-          top: 0,
-          right: 0,
-          child: SafeArea(
-            bottom: false,
-            left: false,
-            child: SizedBox(
-              width: WindowControlMetrics.controlWidth,
-              height: WindowControlMetrics.controlHeight,
-              child: _OverlayWindowControls(),
-            ),
-          ),
-        ),
-      ],
+    DesktopWindowButtonMode.syncFromStorage();
+    return ValueListenableBuilder<bool>(
+      valueListenable: DesktopWindowButtonMode.showNativeButtons,
+      builder: (context, showNativeButtons, _) {
+        return Stack(
+          children: [
+            child,
+            if (!showNativeButtons)
+              const Positioned(
+                top: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  left: false,
+                  child: SizedBox(
+                    width: WindowControlMetrics.controlWidth,
+                    height: WindowControlMetrics.controlHeight,
+                    child: _OverlayWindowControls(),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -170,12 +195,6 @@ class _OverlayWindowControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showWindowButton = GStorage.setting
-        .get(SettingBoxKey.showWindowButton, defaultValue: false);
-    if (showWindowButton) {
-      return const SizedBox.shrink();
-    }
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

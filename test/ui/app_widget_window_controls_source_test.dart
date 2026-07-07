@@ -18,10 +18,16 @@ void main() {
   test('appearance settings synchronizes native and custom window buttons', () {
     final source =
         File('lib/pages/settings/theme_settings_page.dart').readAsStringSync();
+    final controlsSource =
+        File('lib/bean/appbar/desktop_window_controls.dart').readAsStringSync();
 
     expect(source, contains('windowManager.setTitleBarStyle'));
     expect(source, contains('TitleBarStyle.normal'));
     expect(source, contains('TitleBarStyle.hidden'));
     expect(source, contains('windowButtonVisibility: showWindowButton'));
+    expect(source, contains('DesktopWindowButtonMode.setShowNativeButtons'));
+    expect(controlsSource, contains('ValueListenableBuilder<bool>'));
+    expect(
+        controlsSource, contains('DesktopWindowButtonMode.showNativeButtons'));
   });
 }
