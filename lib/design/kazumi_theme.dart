@@ -226,6 +226,9 @@ class KazumiTheme {
   static IconButtonThemeData _iconButtonTheme(ColorScheme scheme) {
     return IconButtonThemeData(
       style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(40, 40)),
+        fixedSize: const WidgetStatePropertyAll(Size(40, 40)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
         foregroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             return scheme.onSurface.withValues(alpha: 0.34);
@@ -240,10 +243,12 @@ class KazumiTheme {
             return Colors.transparent;
           }
           final alpha = states.contains(WidgetState.pressed)
-              ? 0.20
+              ? 0.18
               : states.contains(WidgetState.hovered)
-                  ? 0.16
-                  : KazumiGlassTokens.buttonOpacity * 0.34;
+                  ? 0.12
+                  : states.contains(WidgetState.selected)
+                      ? 0.10
+                      : 0.0;
           return scheme.surfaceContainerHighest.withValues(alpha: alpha);
         }),
         overlayColor: WidgetStateProperty.resolveWith((states) {
@@ -257,23 +262,26 @@ class KazumiTheme {
         }),
         side: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) return BorderSide.none;
+          if (!states.contains(WidgetState.hovered) &&
+              !states.contains(WidgetState.pressed) &&
+              !states.contains(WidgetState.selected)) {
+            return BorderSide.none;
+          }
           return BorderSide(
             color: scheme.outlineVariant.withValues(
-              alpha: states.contains(WidgetState.hovered) ? 0.64 : 0.36,
+              alpha: states.contains(WidgetState.hovered) ? 0.30 : 0.18,
             ),
           );
         }),
         elevation: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.pressed)) return 0;
-          if (states.contains(WidgetState.hovered)) return 2;
           return 0;
         }),
         shadowColor: WidgetStatePropertyAll(
-          scheme.shadow.withValues(alpha: 0.18),
+          scheme.shadow.withValues(alpha: 0.08),
         ),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KazumiRadius.sm),
+            borderRadius: BorderRadius.circular(KazumiRadius.md),
           ),
         ),
       ),

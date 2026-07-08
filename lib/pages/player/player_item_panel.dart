@@ -392,6 +392,19 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
   bool get _showPlayerTopActions =>
       !Utils.isDesktop() || videoPageController.isFullscreen;
 
+  ButtonStyle get _playerIconButtonStyle => IconButton.styleFrom(
+        fixedSize: const Size(42, 42),
+        minimumSize: const Size(42, 42),
+        padding: EdgeInsets.zero,
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        hoverColor: Colors.white.withValues(alpha: 0.08),
+        highlightColor: Colors.white.withValues(alpha: 0.14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -730,6 +743,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                 child: Row(
                   children: [
                     IconButton(
+                      style: _playerIconButtonStyle,
                       color: Colors.white,
                       icon: Icon(playerController.playing
                           ? Icons.pause_rounded
@@ -744,6 +758,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                         Utils.isTablet() ||
                         Utils.isDesktop())
                       IconButton(
+                        style: _playerIconButtonStyle,
                         color: Colors.white,
                         icon: const Icon(Icons.skip_next_rounded),
                         tooltip: '下一集',
@@ -774,6 +789,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                                 children: [
                                   _buildDanmakuToggleButton(context),
                                   IconButton(
+                                    style: _playerIconButtonStyle,
                                     onPressed: () {
                                       widget.keyboardFocus.requestFocus();
                                       showModalBottomSheet(
@@ -820,6 +836,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                       ),
                     if (!Utils.isDesktop()) ...[
                       IconButton(
+                        style: _playerIconButtonStyle,
                         color: Colors.white,
                         icon: playerController.danmakuOn
                             ? danmakuOnIcon(context)
@@ -1033,6 +1050,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                             !Utils.isDesktop())
                         ? Container()
                         : IconButton(
+                            style: _playerIconButtonStyle,
                             color: Colors.white,
                             icon: const Icon(Icons.menu_open_rounded),
                             tooltip: '选集面板',
@@ -1048,6 +1066,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                                 MediaQuery.of(context).size.width)
                         ? Container()
                         : IconButton(
+                            style: _playerIconButtonStyle,
                             color: Colors.white,
                             icon: Icon(videoPageController.isFullscreen
                                 ? Icons.fullscreen_exit_rounded
@@ -1095,6 +1114,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
             child: Row(
               children: [
                 IconButton(
+                  style: _playerIconButtonStyle,
                   color: Colors.white,
                   icon: const Icon(Icons.arrow_back_rounded),
                   tooltip: '返回',
@@ -1123,6 +1143,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                           !videoPageController.isFullscreen) ||
                       Platform.isAndroid)
                     IconButton(
+                      style: _playerIconButtonStyle,
                       onPressed: () async {
                         if (Utils.isDesktop()) {
                           if (videoPageController.isPip) {
@@ -1191,6 +1212,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                     builder: (BuildContext context, MenuController controller,
                         Widget? child) {
                       return IconButton(
+                        style: _playerIconButtonStyle,
                         onPressed: () {
                           if (controller.isOpen) {
                             controller.close();
@@ -1451,6 +1473,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
             (playerController.lockPanel)
                 ? Container()
                 : IconButton(
+                    style: _playerIconButtonStyle,
                     icon: const Icon(
                       Icons.photo_camera_outlined,
                       color: Colors.white,
@@ -1461,6 +1484,7 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                     },
                   ),
             IconButton(
+              style: _playerIconButtonStyle,
               icon: Icon(
                 playerController.lockPanel
                     ? Icons.lock_outline

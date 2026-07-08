@@ -193,7 +193,7 @@ void main() {
     expect(overlayControlsSource, isNot(contains('tooltip:')));
     for (final marker in [
       'class WindowControlMetrics',
-      'buttonWidth = 46',
+      'buttonWidth = 42',
       'controlWidth = buttonWidth * 3',
       'class WindowControlInset',
       'right: showControls ? WindowControlMetrics.controlWidth : 0',

@@ -5,9 +5,9 @@ import 'package:kazumi/utils/utils.dart';
 class WindowControlMetrics {
   const WindowControlMetrics._();
 
-  static const double buttonWidth = 46;
+  static const double buttonWidth = 42;
   static const double controlWidth = buttonWidth * 3;
-  static const double controlHeight = 48;
+  static const double controlHeight = 40;
 }
 
 class WindowControlInset extends StatelessWidget {

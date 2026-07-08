@@ -54,4 +54,24 @@ void main() {
         contains('!Utils.isDesktop() || videoPageController.isFullscreen'));
     expect(playerSource, contains('if (_showPlayerTopActions) ...['));
   });
+
+  test('player fullscreen button uses system fullscreen controller', () {
+    final playerSource =
+        File('lib/pages/player/player_item.dart').readAsStringSync();
+    final handleFullscreenBlock = playerSource.substring(
+      playerSource.indexOf('void handleFullscreen()'),
+      playerSource.indexOf('void displayVideoController()'),
+    );
+
+    expect(handleFullscreenBlock,
+        contains('videoPageController.enterFullScreen()'));
+    expect(handleFullscreenBlock,
+        contains('videoPageController.exitFullScreen()'));
+    expect(handleFullscreenBlock, isNot(contains('Utils.enterFullScreen()')));
+    expect(handleFullscreenBlock, isNot(contains('Utils.exitFullScreen()')));
+    expect(
+        handleFullscreenBlock,
+        isNot(contains(
+            'videoPageController.isFullscreen = !videoPageController.isFullscreen')));
+  });
 }

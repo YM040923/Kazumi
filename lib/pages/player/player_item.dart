@@ -397,8 +397,7 @@ class _PlayerItemState extends State<PlayerItem>
       try {
         playerController.danmakuController.clear();
       } catch (_) {}
-      Utils.exitFullScreen();
-      videoPageController.isFullscreen = !videoPageController.isFullscreen;
+      videoPageController.exitFullScreen();
     } else if (!Platform.isMacOS) {
       playerController.pause();
       windowManager.hide();
@@ -708,16 +707,14 @@ class _PlayerItemState extends State<PlayerItem>
   void handleFullscreen() {
     _handleFullscreenChange(context);
     if (videoPageController.isFullscreen) {
-      Utils.exitFullScreen();
+      videoPageController.exitFullScreen();
       if (!Utils.isDesktop()) {
         widget.locateEpisode();
         videoPageController.showTabBody = true;
       }
     } else {
-      Utils.enterFullScreen();
-      videoPageController.showTabBody = false;
+      videoPageController.enterFullScreen();
     }
-    videoPageController.isFullscreen = !videoPageController.isFullscreen;
   }
 
   void displayVideoController() {

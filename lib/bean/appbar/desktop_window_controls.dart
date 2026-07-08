@@ -6,8 +6,8 @@ import 'package:window_manager/window_manager.dart';
 class WindowControlMetrics {
   const WindowControlMetrics._();
 
-  static const double buttonWidth = 46;
-  static const double controlHeight = 48;
+  static const double buttonWidth = 42;
+  static const double controlHeight = 40;
   static const double controlWidth = buttonWidth * 3;
 }
 
@@ -132,13 +132,14 @@ class DesktopWindowControls extends StatelessWidget {
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
         foregroundColor: colorScheme.onSurfaceVariant,
+        backgroundColor: Colors.transparent,
         hoverColor: isClose
             ? Colors.red.withValues(alpha: 0.12)
-            : colorScheme.onSurface.withValues(alpha: 0.08),
+            : colorScheme.onSurface.withValues(alpha: 0.06),
         highlightColor: isClose
             ? Colors.red.withValues(alpha: 0.18)
-            : colorScheme.onSurface.withValues(alpha: 0.12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            : colorScheme.onSurface.withValues(alpha: 0.10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       onPressed: onPressed,
       icon: icon,
@@ -244,13 +245,14 @@ class _OverlayWindowControls extends StatelessWidget {
       padding: EdgeInsets.zero,
       style: IconButton.styleFrom(
         foregroundColor: colorScheme.onSurfaceVariant,
+        backgroundColor: Colors.transparent,
         hoverColor: isClose
             ? Colors.red.withValues(alpha: 0.12)
-            : colorScheme.onSurface.withValues(alpha: 0.08),
+            : colorScheme.onSurface.withValues(alpha: 0.06),
         highlightColor: isClose
             ? Colors.red.withValues(alpha: 0.18)
-            : colorScheme.onSurface.withValues(alpha: 0.12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            : colorScheme.onSurface.withValues(alpha: 0.10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       onPressed: onPressed,
       icon: icon,
