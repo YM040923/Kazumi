@@ -44,4 +44,14 @@ void main() {
     expect(videoSource,
         contains('DesktopWindowButtonMode.setSuppressOverlayControls(false)'));
   });
+
+  test('desktop player keeps top-right actions out of window edge', () {
+    final playerSource =
+        File('lib/pages/player/player_item_panel.dart').readAsStringSync();
+
+    expect(playerSource, contains('bool get _showPlayerTopActions'));
+    expect(playerSource,
+        contains('!Utils.isDesktop() || videoPageController.isFullscreen'));
+    expect(playerSource, contains('if (_showPlayerTopActions) ...['));
+  });
 }
