@@ -35,6 +35,8 @@ migrate_working_dir/
 .pub/
 /build/
 /_winfr_recovered/
+/dist/
+/upstream-sync-report.local.md
 
 # Symbolication related
 app.*.symbols
